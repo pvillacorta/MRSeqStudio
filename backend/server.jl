@@ -595,13 +595,13 @@ end
    io = open(STATUS_FILES[_simID],"r")
    RECON_PROGRESSES[_simID] = -1 # Initialize reconstruction progress
    if (!eof(io))
-      RECON_PROGRESSES[_simID] = read(io,Int32) - 100
+      RECON_PROGRESSES[_simID] = read(io,Int32)
    end
    close(io)
-   if RECON_PROGRESSES[_simID] == 0
+   if RECON_PROGRESSES[_simID] == 100 # Reconstruction not finished
       headers = ["Location" => string("/recon/",_simID,"/status")]
       return HTTP.Response(303,headers)
-   elseif RECON_PROGRESSES[_simID] == 1
+   elseif RECON_PROGRESSES[_simID] == 101 # Reconstruction finished
       img    = fetch(RECON_RESULTS[uname])[1]
       kspace = fetch(RECON_RESULTS[uname])[2]
       width  = width  - 15

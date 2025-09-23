@@ -1,4 +1,32 @@
+// Global state for simulation tracking (using localStorage for persistence)
+function isSimulationInProgress() {
+    return localStorage.getItem('simulationInProgress') === 'true';
+}
+
+function setSimulationInProgress(value) {
+    localStorage.setItem('simulationInProgress', value.toString());
+}
+
+// Global state for reconstruction tracking (using localStorage for persistence)
+function isReconstructionInProgress() {
+    return localStorage.getItem('reconstructionInProgress') === 'true';
+}
+
+function setReconstructionInProgress(value) {
+    localStorage.setItem('reconstructionInProgress', value.toString());
+}
+
+
 function komaMRIsim(seq_json, scanner_json){
+    // Check if simulation is already in progress
+    if (isSimulationInProgress()) {
+        console.log("Simulation already in progress, ignoring new request");
+        return;
+    }
+    
+    // Set simulation state
+    setSimulationInProgress(true);
+    
     clearSimulationPanel();
     document.getElementById('loading-sim').style.display   = "block";
 
@@ -55,6 +83,8 @@ function requestSimResult(loc){
                 } else if (json === -2){
                     //Error
                     console.log("Simulation Error");
+                    // Reset simulation state on simulation failure
+                    setSimulationInProgress(false);
                 } else {
                     // Status Bar 
                     document.getElementById('response').innerHTML = json + "%";
@@ -75,6 +105,8 @@ function requestSimResult(loc){
             return res.text();
         } if (res.status == 500) {
             clearSimulationPanel();
+            // Reset simulation state on error
+            setSimulationInProgress(false);
             return res.json().then(json => {
                 document.getElementById("errorMsg").textContent =
                     "Simulation failed in KomaMRI: the provided sequence could not be simulated or reconstructed.\nDetails:\n" + json.msg;
@@ -91,14 +123,27 @@ function requestSimResult(loc){
             setResultMode('signal');
             // Show reconstruct button when simulation is complete
             document.getElementById('reconstructButton').style.display = 'block';
+            // Reset simulation state on success
+            setSimulationInProgress(false);
         };
     })
     .catch(error => {
         console.error("Error in the request:", error);
+        // Reset simulation state on network error
+        setSimulationInProgress(false);
     });   
 }
 
 function komaMRIrecon(){
+    // Check if reconstruction is already in progress
+    if (isReconstructionInProgress()) {
+        console.log("Reconstruction already in progress, ignoring new request");
+        return;
+    }
+    
+    // Set reconstruction state
+    setReconstructionInProgress(true);
+    
     clearSimulationPanel();
     document.getElementById('loading-sim').style.display = "block";
 
@@ -144,13 +189,15 @@ function requestReconResult(loc){
             document.getElementById('response').style.visibility    = "visible";
 
             return res.json().then(json => {
-                if (json < 0) {     // Error
+                if (json < 100) {     // Error
                     console.log("Reconstruction Error");
-                } if (json === 0) { // Reconstruction not finished
+                    // Reset reconstruction state on error
+                    setReconstructionInProgress(false);
+                } if (json === 100) { // Reconstruction not finished
                     document.getElementById('response').innerHTML = "Reconstructing...";
                     setTimeout(function() { requestReconResult(loc); }, 500);
                 }
-                if (json === 1) {   // Reconstruction finished
+                if (json === 101) {   // Reconstruction finished
                     setTimeout(function() { requestReconResult(loc); }, 500);
                 } 
             }).then(() => { return; }); 
@@ -160,6 +207,8 @@ function requestReconResult(loc){
             return res.json();
         } if (res.status == 500) {
             clearSimulationPanel();
+            // Reset reconstruction state on error
+            setReconstructionInProgress(false);
             return res.json().then(json => {
                 document.getElementById("errorMsg").textContent = 
                     "Reconstruction failed in KomaMRI: the provided sequence could not be reconstructed.\nDetails:\n" + json.msg;
@@ -179,6 +228,8 @@ function requestReconResult(loc){
              document.getElementById('loading-sim').style.display = "none";
              // Set result mode to image and show it
              setResultMode('image');
+             // Reset reconstruction state on success
+             setReconstructionInProgress(false);
          };
 
          kspace_frame.onload = function() {
@@ -187,6 +238,8 @@ function requestReconResult(loc){
     })
     .catch(error => {
         console.error("Error in the request:", error);
+        // Reset reconstruction state on network error
+        setReconstructionInProgress(false);
     });   
 }
 
@@ -407,4 +460,47 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeSeqToggle)
 } else {
     initializeSeqToggle()
+}
+
+// ==================== SIMULATION RECOVERY ====================
+
+function checkAndResumeSimulation() {
+    // Check if there's a simulation in progress
+    if (isSimulationInProgress() && localStorage.currentSimID) {
+        console.log("Resuming simulation with ID:", localStorage.currentSimID);
+        
+        // Show loading indicator
+        document.getElementById('loading-sim').style.display = "block";
+        
+        // Resume the simulation polling
+        const simID = localStorage.currentSimID;
+        const loc = `/simulate/${simID}`;
+        requestSimResult(loc);
+    }
+}
+
+function checkAndResumeReconstruction() {
+    // Check if there's a reconstruction in progress
+    if (isReconstructionInProgress() && localStorage.currentSimID) {
+        console.log("Resuming reconstruction with ID:", localStorage.currentSimID);
+        
+        // Show loading indicator
+        document.getElementById('loading-sim').style.display = "block";
+        
+        // Resume the reconstruction polling
+        const simID = localStorage.currentSimID;
+        const loc = `/recon/${simID}`;
+        requestReconResult(loc);
+    }
+}
+
+// Call recovery functions when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        checkAndResumeSimulation();
+        checkAndResumeReconstruction();
+    })
+} else {
+    checkAndResumeSimulation();
+    checkAndResumeReconstruction();
 }
