@@ -56,40 +56,18 @@ end
 function assign_process(username)
     if !haskey(ACTIVE_SESSIONS, username)
         pid = get_least_used_pid()
-        println("🔧 Asignando proceso $pid al usuario $username")
         ACTIVE_SESSIONS[username] = pid
-        println("✅ ACTIVE_SESSIONS después de asignar: $ACTIVE_SESSIONS")
     else    
         println("ℹ️ Session already active for $username")
     end
 end
 
 function get_least_used_pid()
-    available_workers = workers()
-    println("🔧 Workers disponibles: $available_workers")
-    
-    # Si no hay workers disponibles, usar el proceso principal
-    if isempty(available_workers)
-        println("⚠️ No hay workers disponibles, usando proceso principal (1)")
-        return 1
-    end
-    
-    # Contar cuántas veces se usa cada proceso
     pid_counts = Dict{Int, Int}()
     for pid in values(ACTIVE_SESSIONS)
         pid_counts[pid] = get(pid_counts, pid, 0) + 1
     end
-    println("🔧 Conteo de procesos: $pid_counts")
-    
-    # Seleccionar el proceso menos usado
-    try
-        selected_pid = argmin(pid -> get(pid_counts, pid, 0), available_workers)
-        println("🔧 Proceso seleccionado: $selected_pid")
-        return selected_pid
-    catch e
-        println("⚠️ Error en argmin: $e, usando primer worker disponible")
-        return available_workers[1]
-    end
+    return argmin(pid -> get(pid_counts, pid, 0), workers())
 end
 
 """
@@ -201,21 +179,9 @@ function user_can_run_more_sequences(username)
             break
         end
         
-        # Si es premium o admin, no tiene límite
+        # Si es premium, no tiene límite
         if is_premium
             return true
-        end
-        
-        # Verificar si es admin
-        admin_query = "SELECT is_admin FROM users WHERE username = ?"
-        admin_stmt = DBInterface.prepare(conn, admin_query)
-        admin_result = DBInterface.execute(admin_stmt, [username])
-        
-        for admin_row in admin_result
-            if admin_row[1] == 1  # Es admin
-                return true
-            end
-            break
         end
         
         # Verificar cuántas secuencias ha usado hoy
@@ -316,58 +282,6 @@ function register_sequence_usage(username)
         
     catch e
         println("❌ Error registrando uso de secuencia: ", e)
-        return false
-    finally
-        DBInterface.close!(conn)
-    end
-end
-
-"""
-save_sequence(username, sequence_id, sequence)
-
-Guarda una secuencia en la base de datos.
-
-# Arguments
-- `username::String`: Nombre de usuario
-- `sequence_id::String`: ID único de la secuencia
-- `sequence`: Objeto de secuencia a guardar
-
-# Returns
-- `Bool`: true si se guardó correctamente
-"""
-function save_sequence(username, sequence_id, sequence)
-    conn = get_db_connection()
-    try
-        # Obtener ID del usuario
-        stmt = DBInterface.prepare(conn, "SELECT id FROM users WHERE username = ?")
-        result = DBInterface.execute(stmt, [username])
-        
-        user_id = 0
-        for row in result
-            user_id = row[1]
-            break
-        end
-        
-        if user_id == 0
-            println("❌ Usuario $username no encontrado")
-            return false
-        end
-        
-        # Serializar la secuencia a JSON
-        sequence_json = JSON3.write(sequence)
-        
-        # Insertar o actualizar la secuencia
-        stmt = DBInterface.prepare(conn, """
-            INSERT OR REPLACE INTO user_sequences (user_id, sequence_id, sequence_data, created_at, updated_at)
-            VALUES (?, ?, ?, NOW(), NOW())
-        """)
-        DBInterface.execute(stmt, [user_id, sequence_id, sequence_json])
-        
-        println("✅ Secuencia $sequence_id guardada para usuario $username")
-        return true
-        
-    catch e
-        println("❌ Error guardando secuencia: $e")
         return false
     finally
         DBInterface.close!(conn)
@@ -601,6 +515,216 @@ function get_user_results(username::String)
         DBInterface.close!(conn)
     end
 end
+"""
+get_user_info(username::String)
+
+Obtiene toda la información de un usuario de la base de datos y la devuelve en un diccionario.
+
+# Arguments
+- `username::String`: Nombre de usuario para buscar
+
+# Returns
+- `Union{Dict{String, Any}, Nothing}`: Diccionario con la información del usuario si existe, `nothing` si no se encuentra
+"""
+function get_user_info(username::String)
+    conn = get_db_connection()
+    try
+        stmt = DBInterface.prepare(conn, """
+            SELECT id, username, email, password_hash, is_premium, created_at, updated_at, is_admin 
+            FROM users 
+            WHERE username = ?
+        """)
+        result = DBInterface.execute(stmt, [username])
+        
+        for row in result
+            return Dict(
+                "id" => row[1],
+                "username" => row[2],
+                "email" => row[3],
+                "password_hash" => row[4],
+                "is_premium" => row[5] == 1,
+                "created_at" => string(row[6]),
+                "updated_at" => string(row[7]),
+                "is_admin" => row[8] == 1
+            )
+        end
+        
+        # Si no se encuentra el usuario
+        return nothing
+        
+    catch e
+        println("❌ Error obteniendo información del usuario: ", e)
+        return nothing
+    finally
+        DBInterface.close!(conn)
+    end
+end
+"""
+get_user_privileges(username::String)
+
+Obtiene los privilegios de un usuario de la base de datos y los devuelve en un diccionario.
+
+# Arguments
+- `username::String`: Nombre de usuario para buscar
+
+# Returns
+- `Union{Dict{String, Any}, Nothing}`: Diccionario con los privilegios del usuario si existe, `nothing` si no se encuentra
+"""
+function get_user_privileges(username::String)
+    conn = get_db_connection()
+    try
+        stmt = DBInterface.prepare(conn, """
+            SELECT p.gpu_access, p.max_daily_sequences, p.storage_quota_mb 
+            FROM users u 
+            LEFT JOIN user_privileges p ON u.id = p.user_id 
+            WHERE u.username = ?
+        """)
+        result = DBInterface.execute(stmt, [username])
+        
+        for row in result
+            # Usar valores por defecto si son missing
+            gpu_access = ismissing(row[1]) ? false : row[1] == 1
+            max_daily_sequences = ismissing(row[2]) ? 10 : row[2]
+            storage_quota_mb = ismissing(row[3]) ? 0.5 : row[3]
+            
+            return Dict(
+                "gpu_access" => gpu_access,
+                "max_daily_sequences" => max_daily_sequences,
+                "storage_quota_mb" => storage_quota_mb
+            )
+        end
+        
+        # Si no se encuentra el usuario
+        return nothing
+        
+    catch e
+        println("❌ Error obteniendo privilegios del usuario: ", e)
+        return nothing
+    finally
+        DBInterface.close!(conn)
+    end
+end
+
+"""
+save_sequence(username, sequence_id, sequence_data)
+
+Guarda una secuencia verificando las cuotas de almacenamiento.
+
+# Arguments
+- `username::String`: Nombre de usuario
+- `sequence_id::String`: ID único de la secuencia
+- `sequence_data`: Datos de la secuencia (debe ser serializable)
+
+# Returns
+- `Bool`: true si se guardó correctamente
+"""
+function save_sequence(username::String, sequence_id::String, sequence_data)
+    conn = get_db_connection()
+    try
+        # Obtener ID del usuario y sus límites
+        stmt = DBInterface.prepare(conn, """
+            SELECT u.id, u.is_premium, COALESCE(p.storage_quota_mb, 0.5) as storage_quota 
+            FROM users u 
+            LEFT JOIN user_privileges p ON u.id = p.user_id 
+            WHERE u.username = ?
+        """)
+        result_query = DBInterface.execute(stmt, [username])
+        
+        user_id = 0
+        is_premium = false
+        storage_quota = 0.5  # Valor predeterminado en MB
+        
+        for row in result_query
+            user_id = row[1]
+            is_premium = row[2] === 1 || row[2] === true
+            storage_quota = ismissing(row[3]) ? 0.5 : row[3]
+            break
+        end
+        
+        if user_id == 0
+            println("❌ Usuario no encontrado: $username")
+            return false
+        end
+        
+        # Calcular espacio actualmente utilizado en results
+        stmt = DBInterface.prepare(conn, "SELECT SUM(file_size_mb) FROM results WHERE user_id = ?")
+        result_query = DBInterface.execute(stmt, [user_id])
+        
+        current_usage = 0.0
+        for row in result_query
+            if row[1] !== nothing && !ismissing(row[1])
+                current_usage = row[1]
+            end
+            break
+        end
+        
+        # Calcular tamaño aproximado de la nueva secuencia
+        new_size_mb = sizeof(sequence_data) / (1024 * 1024)
+        
+        # Verificar si excede la cuota (a menos que sea premium)
+        exceeds_quota = !is_premium && (current_usage + new_size_mb > storage_quota)
+        
+        if exceeds_quota
+            println("❌ Excede cuota de almacenamiento: $username (Usado: $current_usage MB, Nuevo: $new_size_mb MB, Límite: $storage_quota MB)")
+            return false
+        end
+        
+        # Crear directorio si no existe
+        results_dir = joinpath(@__DIR__, "..", "sequences")
+        user_dir = joinpath(results_dir, string(user_id))
+        
+        mkpath(results_dir)
+        mkpath(user_dir)
+        
+        # Crear nombre de archivo con timestamp (agregar '_seq' para distinguir de resultados)
+        timestamp = Dates.format(now(), "yyyymmdd_HHMMSS")
+        file_name = "$(sequence_id).json"
+        file_path = joinpath(user_dir, file_name)
+        
+        # Guardar secuencia en disco como JSON
+        open(file_path, "w") do io
+            JSON3.write(io, sequence_data)
+        end
+        
+        # Obtener tamaño real del archivo
+        file_size_mb = filesize(file_path) / (1024 * 1024)
+        
+        # Registrar en la base de datos en la tabla results
+        stmt = DBInterface.prepare(conn, """
+            INSERT INTO results (user_id, sequence_id, file_path, file_size_mb)
+            VALUES (?, ?, ?, ?)
+        """)
+        DBInterface.execute(stmt, [user_id, sequence_id, file_path, file_size_mb])
+        
+        println("✅ Secuencia guardada: $sequence_id para usuario $username (Tamaño: $(round(file_size_mb, digits=2)) MB)")
+        return true
+        
+    catch e
+        println("❌ Error guardando secuencia: ", e)
+        return false
+    finally
+        DBInterface.close!(conn)
+    end
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 """
 get_user_privileges(username)
@@ -632,27 +756,19 @@ function get_user_privileges(username::String)
         
         for row in result
             # Crear diccionario con los privilegios del usuario
-            # Para usuarios admin, dar privilegios especiales si no tienen registro en user_privileges
-            is_admin = row[4] == 1
-            storage_quota = row[5] === nothing ? (is_admin ? 10.0 : 0.5) : row[5]
-            gpu_access = row[6] === nothing ? (is_admin ? 1 : 0) : row[6]
-            max_sequences = row[7] === nothing ? (is_admin ? 1000 : 10) : row[7]
-            
             privileges = Dict(
                 "id" => row[1],
                 "username" => row[2],
                 "is_premium" => row[3] == 1,
-                "is_admin" => is_admin,
-                "storage_quota_mb" => storage_quota,
-                "gpu_access" => gpu_access == 1,
-                "max_daily_sequences" => max_sequences
+                "is_admin" => row[4] == 1,
+                "storage_quota_mb" => row[5],
+                "gpu_access" => row[6] == 1,
+                "max_daily_sequences" => row[7]
             )
-            println("✅ Privilegios obtenidos para $username: $privileges")
             return privileges
         end
         
         # Si no se encontró el usuario
-        println("⚠️ Usuario $username no encontrado en la base de datos")
         return nothing
         
     catch e

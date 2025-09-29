@@ -29,4 +29,3 @@ Web MRI Sequence Editor and Simulator based on [KomaMRI](https://github.com/Juli
 
 ## OpenAPI:
 The OpenAPI specification document for this API is available [here](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/pvillacorta/MRSeqStudio/refs/heads/master/docs/api.yaml).
- 

@@ -96,7 +96,8 @@ json_to_sequence(json_seq::JSON3.Object, sys::Scanner) = begin
    vars = read_variables(json_seq["variables"])
 
    global seq = Sequence()
-   
+   global R = float([1 0 0; 0 1 0; 0 0 1])
+
    N_x = 0
 
    blocks = json_seq["blocks"]
@@ -153,8 +154,6 @@ json_to_sequence(json_seq::JSON3.Object, sys::Scanner) = begin
          end
 
       elseif block["cod"] == 1       # <-------------------------- Excitation
-         # print("Excitation\n")
-
          rf     = block["rf"][1]
          shape  = rf["shape"]
          deltaf = eval_string(rf["deltaf"], vars, iterators)
@@ -179,7 +178,7 @@ json_to_sequence(json_seq::JSON3.Object, sys::Scanner) = begin
          elseif haskey(block, "duration") & haskey(rf, "b1Module")
             duration = eval_string(block["duration"], vars, iterators)  
             amplitude = eval_string(rf["b1Module"], vars, iterators)
-      
+        
          # Flip angle and amplitude
          elseif haskey(rf, "flipAngle") & haskey(rf, "b1Module")
             flipAngle = eval_string(rf["flipAngle"], vars, iterators)
@@ -206,30 +205,31 @@ json_to_sequence(json_seq::JSON3.Object, sys::Scanner) = begin
          end
 
          EX.GR = get_gradients(block)
+
+         REF = [0, 0, 1]
+         G = vec(EX.GR.A)
+         cross_prod = LinearAlgebra.cross(REF, G)
+         n = normalize(cross_prod)
+         θ = asin(norm(cross_prod)/(norm(REF)*norm(G)))
+         R = norm(cross_prod) > 0 ? Un(θ, n) : R
+
          EX.RF[1].delay = maximum(EX.GR.rise)
          EX.DUR[1] = EX.RF[1].delay + max(maximum(EX.GR.T .+ EX.GR.fall), duration)
          seq += EX
 
       elseif block["cod"] == 2       # <-------------------------- Delay
-         # print("Delay\n")
-
          duration = eval_string(block["duration"], vars, iterators)
          DELAY = Delay(duration)
          seq += DELAY
 
       elseif block["cod"] in [3,4]   # <-------------------------- Dephase or Readout
-         if block["cod"] == 3
-            # print("Dephase\n")
-         elseif block["cod"] == 4
-            # print("Readout\n")
-         end
-
          DEPHASE = Sequence(get_gradients(block))
 
          if block["cod"] == 4
             DEPHASE.ADC[1].N = eval_string(block["samples"], vars, iterators)
             DEPHASE.ADC[1].T = eval_string(block["duration"], vars, iterators)
             DEPHASE.ADC[1].delay = eval_string(block["adcDelay"], vars, iterators)
+            DEPHASE.ADC[1].ϕ = eval_string(block["adcPhase"], vars, iterators)
 
             N_x = eval_string(block["samples"], vars, iterators)
          end
@@ -237,21 +237,15 @@ json_to_sequence(json_seq::JSON3.Object, sys::Scanner) = begin
          seq += DEPHASE
 
       elseif block["cod"] == 5       # <-------------------------- EPI
-         # print("EPI\n")
-
          fov = eval_string(block["fov"], vars, iterators)
          lines = eval_string(block["lines"], vars, iterators)
          samples = eval_string(block["samples"], vars, iterators)
 
          N_x = eval_string(block["samples"], vars, iterators)
 
-         EPI = PulseDesigner.EPI(fov, lines, sys)
-
-         seq += EPI
+         seq += R * EPI(fov, lines, sys)
 
       elseif block["cod"] == 6       # <-------------------------- GRE  
-         # print("GRE\n")
-
          fov = eval_string(block["fov"], vars, iterators)
          lines = eval_string(block["lines"], vars, iterators)
          samples = eval_string(block["samples"], vars, iterators)
@@ -264,7 +258,7 @@ json_to_sequence(json_seq::JSON3.Object, sys::Scanner) = begin
          α     = eval_string(rf["flipAngle"], vars, iterators)
          Δf    = eval_string(rf["deltaf"], vars, iterators)
 
-         seq += GRE(fov, lines, te, tr, α, sys; Δf=Δf)
+         seq += R * GRE(fov, lines, te, tr, α, sys; Δf=Δf)
       end 
    end
 
@@ -277,7 +271,7 @@ json_to_sequence(json_seq::JSON3.Object, sys::Scanner) = begin
    seq.DEF = Dict("Nx"=>N_x,"Ny"=>N_x,"Nz"=>1)
 
    display(seq)
-   return seq
+   return seq, R
 end
 
 "Convert a json string containing scanner information into a KomaMRIBase.Scanner object"
@@ -295,69 +289,52 @@ json_to_scanner(json_scanner::JSON3.Object) = begin
    
    return sys
 end
-
-"Obtain the reconstructed image from raw_signal (obtained from simulation)"
-recon(raw_signal, seq) = begin
-   recParams = Dict{Symbol,Any}(:reco=>"direct")
-   Nx = seq.DEF["Nx"]
-   Ny = seq.DEF["Ny"]
-
-   recParams[:reconSize] = (Nx, Ny)
-   recParams[:densityWeighting] = false
-
-   acqData = AcquisitionData(raw_signal)
-   acqData.traj[1].circular = false #Removing circular window
-   acqData.traj[1].nodes = acqData.traj[1].nodes[1:2,:] ./ maximum(2*abs.(acqData.traj[1].nodes[:])) #Normalize k-space to -.5 to .5 for NUFFT
-
-   aux = @timed reconstruction(acqData, recParams)
-   image  = reshape(aux.value.data,Nx,Ny,:)
-   kspace = KomaMRI.fftc(reshape(aux.value.data,Nx,Ny,:))
-
-   return image, kspace
-end
-
 "Obtain raw RM signal. Input arguments are a 2D matrix (sequence) and a 1D vector (system parameters)"
-sim(sequence_json, scanner_json, phantom, path, gpu_active) = begin
-   # Phantom
-   if phantom     == "Brain 2D"
-      phant = KomaMRI.brain_phantom2D()
-   elseif phantom == "Brain 3D"
-      phant = KomaMRI.brain_phantom3D(; ss=3, start_end=[1, 360])
-   elseif phantom == "Pelvis 2D"
-      phant = KomaMRI.pelvis_phantom2D()
-   end
-   phant.Δw .= 0
-
-   # Scanner
-   sys = json_to_scanner(scanner_json)
-
-   # Sequence
-   seq = json_to_sequence(sequence_json, sys)
-
-   # Simulation parameters
-   simParams = Dict{String,Any}()
-   if gpu_active
-      simParams["gpu"] = true
-   else
-      simParams["gpu"] = false
-   end
-
-   # Simulation
-   raw_signal = 0
+sim(obj, seq, sys, path, gpu_active; sim_params=Dict{String,Any}()) = begin
    try
-      raw_signal = simulate(phant, seq, sys; sim_params=simParams, w=path)
+      if gpu_active
+         sim_params["gpu"] = true
+      else
+         sim_params["gpu"] = false
+      end
+      return simulate(obj, seq, sys; sim_params=sim_params, w=path)
    catch e
       println("Simulation failed")
       display(e)
       update_progress!(path, -2)
       return e
    end
+end
 
-   # Reconstruction
+
+
+"Obtain the reconstructed image from raw_signal (obtained from simulation)"
+recon(raw_signal, seq, rot_matrix, path) = begin
    try
-      image, kspace = recon(raw_signal, seq)
+      seq_no_rot = inv(rot_matrix) * seq
+      _, ktraj = get_kspace(seq_no_rot)
+
+      recParams = Dict{Symbol,Any}(:reco=>"direct")
+      Nx = seq.DEF["Nx"]
+      Ny = seq.DEF["Ny"]
+
+      recParams[:reconSize] = (Nx, Ny)
+      recParams[:densityWeighting] = false
+
+      acqData = AcquisitionData(raw_signal)
+      acqData.traj[1].circular = false #Removing circular window
+      acqData.traj[1].nodes = transpose(ktraj[:, 1:2]) #<----------------CAMBIO
+      acqData.traj[1].nodes = acqData.traj[1].nodes[1:2,:] ./ maximum(2*abs.(acqData.traj[1].nodes[:])) #Normalize k-space to -.5 to .5 for NUFFT
+
+      Nx, Ny = raw_signal.params["reconSize"][1:2]
+      recParams[:reconSize] = (Nx, Ny)
+      recParams[:densityWeighting] = true
+
+      aux = @timed reconstruction(acqData, recParams)
+      image  = reshape(aux.value.data,Nx,Ny,:)
+      kspace = KomaMRI.fftc(reshape(aux.value.data,Nx,Ny,:))
       update_progress!(path, 101)
-      return image
+      return image, kspace
    catch e
       println("Reconstruction failed")
       display(e)
@@ -366,51 +343,8 @@ sim(sequence_json, scanner_json, phantom, path, gpu_active) = begin
    end
 end
 
-"""
-   sim_with_limits(sequence_json, scanner_json, phantom_string, statusFile, username, sequence_id)
 
-Versión de la función de simulación que tiene en cuenta los límites de usuario
-Pero que no usamos en ninguna parte porque...no se supongo que la hice para fardar o perder mi vida haciendo 2 veces la misma cosa
-"""
-function sim_with_limits(sequence_json, scanner_json, phantom_string, statusFile, username, sequence_id)
-   # Verificar límites antes de iniciar la simulación
-   if !user_can_run_more_sequences(username)
-      update_progress!(statusFile, -2)  # Marcar como error
-      return Dict("error" => "Límite diario de secuencias alcanzado")
-   end
 
-   # Registrar el uso de la secuencia
-   register_sequence_usage(username)
-   
-   #Comprobamos los privilegios para el uso de gpu
-   user_privs = get_user_privileges(username)
-   gpu_active = false
-   if !user_privs
-      println("[!!!] No se pudo obtener los privilegios para $username")
-   else
-      gpu_active = user_privs["gpu_access"]
-   end
-
-   # Ejecutar la simulación normal
-   result = sim(sequence_json, scanner_json, phantom_string, statusFile, gpu_active)
-   
-   # Calcular tamaño aproximado del resultado
-   # Este cálculo depende del tipo de resultado que genera la simulación
-   # Suponiendo que result es un array 3D
-   size_bytes = sizeof(result)
-   size_mb = size_bytes / (1024 * 1024)
-
-   # Guardar el resultado si está dentro de los límites
-   save_result = save_simulation_result(username, sequence_id, result)
-   
-   if !save_result
-      println("[!!!] No se pudo guardar el resultado para $username - excede límite de almacenamiento")
-   else
-      println("✅ Resultado guardado para $username con ID $sequence_id")
-   end
-   
-   return result
-end
 
 function read_variables(json_variables::JSON3.Array)
    variables = Dict{String,Any}()
@@ -430,10 +364,11 @@ function read_iterators(json_blocks::JSON3.Array)
    return iterators
 end
 
+# TODO; Check security problems with this function.
 "Eval a string expression and return the result"
 function eval_string(expr::String, variables::Dict, iterators::Dict{String,Int}=Dict{String,Int}())
    if expr == ""
-      return 0
+       return 0
    end
 
    allowed_operators = Set(["+", "-", "*", "/", "(", ")", "^"])
@@ -442,7 +377,7 @@ function eval_string(expr::String, variables::Dict, iterators::Dict{String,Int}=
 
    tokens = eachmatch(r"[a-zA-Z_][a-zA-Z0-9_]*|\d+\.?\d*(?:[eE][+-]?\d+)?|[()+\-*/^]", expr)
 
-   all_vars = merge(variables, iterators)
+   all_vars = merge(variables, iterators, Dict("pi" => pi))
 
    rebuilt = String[]
    for token in tokens
@@ -464,17 +399,3 @@ function eval_string(expr::String, variables::Dict, iterators::Dict{String,Int}=
       error("Error evaluating expression: $(err)")
    end
 end
-
-# function load_secret_key(file_path::String="secret_key.txt")
-#    if !isfile(file_path)
-#       error("Secret key file not found: $file_path")
-#    else
-#       key = read(file_path, String)
-#       if key == "this_is_a_sample_secret_key_do_not_use_this_in_production_please_generate_your_own"
-#          @warn "Using the default secret key. Please change it for production use."
-#       end
-#    end
-#    return key
-# end
-
-
