@@ -345,6 +345,7 @@ end
             description: Internal server error
 """
 @post "/simulate" function(req::HTTP.Request)
+    println("[Simulate/")
    # Obtener información del usuario
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
@@ -355,26 +356,16 @@ end
       return HTTP.Response(403, ["Content-Type" => "application/json"],
          JSON3.write(Dict("error" => "Has alcanzado tu límite diario de secuencias")))
    end
-   
+   pid = ACTIVE_SESSIONS[uname]
    # Configurar archivo de estado temporal
    STATUS_FILES[simID] = tempname()
    touch(STATUS_FILES[simID])
 
    scanner_json   = json(req)["scanner"]
    sequence_json  = json(req)["sequence"]
-   phantom_string = json(req)["phantom"]
    SCANNERS[uname]                       = json_to_scanner(scanner_json)
    SEQUENCES[uname], ROT_MATRICES[uname] = json_to_sequence(sequence_json, SCANNERS[uname])
-
-   ##movidas raras tope de chungas para phantomear cosas
-   # Cargar el phantom (como se hace en /plot_phantom)
-   phantom_path = "phantoms/$phantom_string/$phantom_string.phantom"
-   obj = read_phantom(phantom_path)
-   obj.Δw .= 0
-   PHANTOMS[uname] = obj
-   #####################################################
-
-
+   
    ########### movidas de secuencias y gestion de users
    # Generar un ID único para la secuencia
    sequence_unique_id = "seq_$(now())_$(rand(1:10000))"
@@ -403,10 +394,6 @@ end
    if !haskey(ACTIVE_SESSIONS, uname) # Check if the user has already an active session
       assign_process(uname) # We assign a new julia process to the user
    end
-   
-   # Obtener el PID después de asegurar que existe
-   pid = ACTIVE_SESSIONS[uname]
-   println("ES EL REPUTISIMO FINAL DE LOS TIEMPOS")
    # Simulation  (asynchronous. It should not block the HTTP 202 Response)
    RAW_RESULTS[uname]                    = @spawnat pid sim(PHANTOMS[uname], SEQUENCES[uname], SCANNERS[uname], STATUS_FILES[simID], gpu_active)
 
@@ -477,6 +464,7 @@ end
             description: Internal server error
 """
 @get "/simulate/{simID}" function(req::HTTP.Request, simID, width::Int, height::Int)
+    println("[Simulate/simID]")
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
    _simID = parse(Int, simID)
@@ -502,6 +490,8 @@ end
       if haskey(SIM_METADATA, _simID) && !haskey(SIM_METADATA[_simID], "saved")
          metadata = SIM_METADATA[_simID]
          sequence_id = metadata["sequence_id"]
+
+         
          
          # Intentar guardar el resultado (verifica internamente los límites de espacio)
          save_result = save_simulation_result(uname, sequence_id, sig)
@@ -1250,6 +1240,7 @@ swagger_document = build(openApi)
 setschema(swagger_document)
 
 serve(host="0.0.0.0",port=8000, middleware=[AuthMiddleware])
+
 
 
 

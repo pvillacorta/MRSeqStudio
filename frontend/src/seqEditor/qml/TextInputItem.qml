@@ -33,7 +33,11 @@ Item{
             }
 
             onEditingFinished:{
-                applyChanges(idNumber)
+                // Only call applyChanges for non-variable contexts (idNumber >= 0)
+                // For variables (idNumber < 0), the model is updated directly via onTextChanged
+                if (idNumber >= 0) {
+                    applyChanges(idNumber)
+                }
             }
         }
     }

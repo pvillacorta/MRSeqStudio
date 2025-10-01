@@ -8,26 +8,25 @@ Rectangle{
     color: "#016b6b"
     property int menuID: -2
 
-    function applyVariablesChanges(){
-        var idx = getViewIndexes() 
-        for (var i = 0; i < idx.length; i++){
-            var delegateItem = variablesView.contentItem.children[idx[i]];
-            if (delegateItem) {
-                variablesList.setProperty(i, "name",       delegateItem.children[0].text)
-                variablesList.setProperty(i, "expression", delegateItem.children[1].text)
-                variablesList.setProperty(i, "value",      evalExpression(delegateItem.children[1].text))
-            }
-            else{
-                console.log("No se encontró el item " + i);
+    function recalculateAllVariables(){
+        // Recalculate all variables to handle dependencies
+        for (var i = 0; i < variablesList.count; i++) {
+            var item = variablesList.get(i)
+            if (item && item.expression) {
+                var newValue = evalExpression(item.expression)
+                if (isNaN(newValue) || !isFinite(newValue)) {
+                    console.warn("Invalid expression result for variable '" + item.name + "': " + item.expression)
+                    newValue = 0
+                }
+                variablesList.setProperty(i, "value", newValue)
             }
         }
     }
 
-    function getViewIndexes(){ // This is not the best practice, but it works
+    function getViewIndexes(){ // Fixed: correct mapping between ListModel and view indices
         var indexes = []
         for (var i = 0; i < variablesList.count; i++){
-            var j = i == 0 ? i : i + 1 
-            indexes.push(j)
+            indexes.push(i) // Direct 1:1 mapping
         }
         return indexes
     }
@@ -123,6 +122,8 @@ Rectangle{
                 height: 25
                 columns:4
                 columnSpacing: 5
+                
+                // Name input - updates model directly
                 TextInputItem{
                     id: nameInput;  
                     idNumber: menuID; 
@@ -132,20 +133,45 @@ Rectangle{
                     function nextInput(){
                         return expressionInput.textInput
                     }
+                    onTextChanged: {
+                        if (text !== name) {
+                            variablesList.setProperty(index, "name", text)
+                            // Recalculate all variables in case any depend on this variable name
+                            recalculateAllVariables()
+                        }
+                    }
                 }
+                
+                // Expression input - updates model directly and recalculates value
                 TextInputItem{
                     id: expressionInput;  
                     idNumber: menuID; 
                     text: expression; 
                     width: 100; 
                     function nextInput(){
-                        var idx = getViewIndexes()
-                        if (index < idx.length - 1) {
-                            return variablesView.contentItem.children[idx[index + 1]].children[0].textInput
+                        if (index < variablesList.count - 1) {
+                            return valueInput.textInput
                         }
                         return null; 
                     }
+                    onTextChanged: {
+                        if (text !== expression) {
+                            variablesList.setProperty(index, "expression", text)
+                            // Recalculate this variable's value
+                            var newValue = evalExpression(text)
+                            if (isNaN(newValue) || !isFinite(newValue)) {
+                                console.warn("Invalid expression result for variable '" + name + "': " + text)
+                                newValue = 0
+                            }
+                            variablesList.setProperty(index, "value", newValue)
+                            
+                            // Recalculate ALL variables that might depend on this one
+                            recalculateAllVariables()
+                        }
+                    }
                 }
+                
+                // Value input - read-only, displays calculated value
                 TextInputItem{
                     id: valueInput; 
                     idNumber: menuID; 
@@ -153,13 +179,13 @@ Rectangle{
                     width: 100; 
                     readOnly: true
                     function nextInput(){
-                        var idx = getViewIndexes()
-                        if (index < idx.length - 1) {
-                            return variablesView.contentItem.children[idx[index + 1]].children[0].textInput
+                        if (index < variablesList.count - 1) {
+                            return variablesView.itemAt(0, (index + 1) * 25 + 12.5).children[0].textInput
                         }
                         return null; 
                     }
                 }
+                
                 DeleteButton{
                     visible: !readonly
                     function clicked(){

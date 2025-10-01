@@ -44,25 +44,74 @@
     <div class="container">
         <div class="box col-6" id="screenSeq">
             <p class="title">Sequence Diagram</p>
+            <div class="toggle">
+                <select id="seqToggle" style="display: none;">
+                    <option value="sequence" selected>Sequence</option>
+                    <option value="kspace">K-Space</option>
+                </select>
+            </div>
             <img id="loading-seq" class="loading content" src="assets/loading.gif" />
-            <iframe class="content" id="seq-diagram" frameBorder="0" style="visibility: hidden; height: 98%; width:98%; z-index:10"></iframe>
+            <iframe class="iframe" id="seqDiagram" frameBorder="0"></iframe>
+            <iframe class="iframe" id="kspaceDiagram" frameBorder="0" style="visibility: hidden;"></iframe>
             <p class="content error-msg" id="seqErrorMsg"></p>
         </div>
         <div class="box col-3" id="screen3DViewer">
-            <img id="loading-vtk" class="loading content" src="assets/loading.gif" />    
+            <p class="title">Phantom Viewer</p>
+            <div class="toggle">
+                <label for="mapToggle">Map:</label>
+                <select id="mapToggle">
+                    <option value="T1" selected>T1</option>
+                    <option value="T2">T2</option>
+                    <option value="PD">PD</option>
+                    <option value="dw">Δw</option>
+                </select>
+                <label for="viewerToggle">Viewer:</label>
+                <select id="viewerToggle">
+                    <option value="slices" selected>Slices</option>
+                    <option value="volume">Volume</option>
+                </select>
+            </div>
+            <img id="loading-viewer" class="loading content" src="assets/loading.gif" />    
             <div id="VTKjs" style="width:100%; height:100%"></div>
-            <p class="title">3D Slice Viewer</p>
+            <iframe class="iframe" id="phantomViewer" frameBorder="0"></iframe>
         </div>
         <div class="box col-3" id="screenSimulator">
             <p class="title">Simulation Result</p>
+            
+            <div class="toggle">
+                <select id="resultToggle" style="display: none;">
+                    <option value="signal">Signal</option>
+                    <option value="image" selected>Image</option>
+                    <option value="kspace">K-Space</option>
+                </select>
+
+                <!-- Reconstruct Button -->
+                <button id="reconstructButton" style="display: none;" onclick="komaMRIrecon()">Reconstruct</button>
+            </div>
+
             <div id="simProgress" width="90%">
-                <p id="response"></p>
                 <div id="myProgress">
                     <div id="myBar"></div>
                 </div>
             </div>
-            <p class="content error-msg" id="simErrorMsg"><p>
-            <iframe class="content" id="simResult" frameBorder="0"></iframe>
+
+            <!-- Loading GIF-->
+            <img id="loading-sim" class="loading content" src="assets/loading.gif" style="display: none;" />   
+
+            <!-- Information Message -->
+            <p id="response" style="margin-left: 5%;"></p>
+            
+            <!-- Error Message -->
+            <p class="content error-msg" id="errorMsg"></p>
+            
+            <!-- Signal Tab Content -->
+            <iframe class="iframe" id="simResult" frameBorder="0"></iframe>
+            
+            <!-- Image Tab Content -->
+            <iframe class="iframe" id="imageResult" frameBorder="0"></iframe>
+
+            <!-- K-Space Tab Content -->
+            <iframe class="iframe" id="kspaceResult" frameBorder="0"></iframe>
         </div>
     </div>
 

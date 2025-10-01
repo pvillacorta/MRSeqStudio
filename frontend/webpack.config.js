@@ -37,6 +37,7 @@ module.exports = (env, argv) => {
         plugins: [
             new ProgressPlugin(),
             new CleanWebpackPlugin(),
+
             new HtmlWebpackPlugin({
                 template: 'src/index.html',
                 filename: 'index.html',
@@ -79,3 +80,6 @@ module.exports = (env, argv) => {
         devtool: 'source-map',
     };
 };
+
+
+

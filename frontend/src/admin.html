@@ -1,650 +1,731 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración - MRSeqStudio</title>
+    <title>Administration Panel - MRSeqStudio</title>
     <style>
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --success-color: #2ecc71;
-            --danger-color: #e74c3c;
-            --warning-color: #f39c12;
-            --text-color: #333;
-            --light-bg: #f5f5f5;
-            --border-color: #ddd;
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3a3a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --text-muted: #888888;
+            --accent-primary: #4f46e5;
+            --accent-secondary: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: #404040;
+            --shadow: rgba(0, 0, 0, 0.3);
         }
-        
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: var(--light-bg);
-            color: var(--text-color);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #0f0f0f 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
             line-height: 1.6;
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .card {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            box-shadow: 0 20px 40px var(--shadow);
+            margin-top: 20px;
             margin-bottom: 20px;
             overflow: hidden;
+            border: 1px solid var(--border);
         }
         
-        .card-header {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 15px 20px;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        h1, h2 {
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--accent-primary);
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            font-weight: 600;
         }
-        
-        .card-body {
-            padding: 20px;
-        }
-        
-        .tabs {
-            display: flex;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 20px;
-        }
-        
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            transition: all 0.3s;
-        }
-        
-        .tab.active {
-            border-bottom-color: var(--secondary-color);
-            font-weight: bold;
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-        
-        th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-        }
-        
-        tr:hover {
-            background-color: #f8f9fa;
-        }
-        
         .btn {
-            padding: 8px 16px;
+            padding: 12px 24px;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
-            transition: all 0.3s;
-            margin-right: 5px;
+            font-weight: 500;
+            margin-right: 8px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
         
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
         
         .btn-primary {
-            background-color: var(--secondary-color);
+            background: linear-gradient(135deg, var(--accent-primary), #6366f1);
             color: white;
         }
         
         .btn-primary:hover {
-            background-color: #2980b9;
-        }
-        
-        .btn-success {
-            background-color: var(--success-color);
-            color: white;
-        }
-        
-        .btn-success:hover {
-            background-color: #27ae60;
+            background: linear-gradient(135deg, #4338ca, #5b21b6);
         }
         
         .btn-danger {
-            background-color: var(--danger-color);
+            background: linear-gradient(135deg, var(--danger), #dc2626);
             color: white;
         }
         
         .btn-danger:hover {
-            background-color: #c0392b;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
         }
         
         .btn-warning {
-            background-color: var(--warning-color);
+            background: linear-gradient(135deg, var(--warning), #d97706);
             color: white;
         }
         
         .btn-warning:hover {
-            background-color: #e67e22;
+            background: linear-gradient(135deg, #d97706, #b45309);
         }
         
+        .btn-info {
+            background: linear-gradient(135deg, var(--accent-secondary), #0891b2);
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            font-size: 14px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        
+        th, td {
+            padding: 16px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            background: linear-gradient(135deg, var(--bg-tertiary), #404040);
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+        
+        td {
+            color: var(--text-secondary);
+        }
+        
+        tr:hover {
+            background: rgba(79, 70, 229, 0.1);
+            transition: background 0.2s ease;
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
         .modal {
             display: none;
             position: fixed;
-            z-index: 100;
+            z-index: 1000;
             left: 0;
             top: 0;
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
         }
         
         .modal-content {
-            background-color: white;
-            margin: 10% auto;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            width: 60%;
+            background: var(--bg-secondary);
+            margin: 5% auto;
+            padding: 32px;
+            border: 1px solid var(--border);
+            width: 90%;
             max-width: 600px;
-            animation: slideDown 0.3s ease;
-        }
-        
-        @keyframes slideDown {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+            border-radius: 16px;
+            box-shadow: 0 20px 40px var(--shadow);
+            position: relative;
         }
         
         .close {
-            color: #aaa;
+            color: var(--text-muted);
             float: right;
             font-size: 28px;
             font-weight: bold;
             cursor: pointer;
+            transition: color 0.2s ease;
+            position: absolute;
+            top: 16px;
+            right: 20px;
         }
         
         .close:hover {
-            color: #333;
+            color: var(--text-primary);
         }
-        
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         
         .form-group label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 14px;
         }
         
         .form-group input, .form-group select {
             width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
             box-sizing: border-box;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
             font-size: 14px;
+            transition: all 0.2s ease;
         }
         
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
         .form-row {
             display: flex;
             gap: 15px;
         }
-        
         .form-row .form-group {
             flex: 1;
         }
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 32px;
+            background: linear-gradient(135deg, var(--bg-tertiary), #404040);
+            border-bottom: 1px solid var(--border);
+        }
         
+        .navbar h1 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .checkbox-group {
+            margin-top: 5px;
+        }
         .checkbox-label {
             display: flex;
             align-items: center;
             cursor: pointer;
-            user-select: none;
         }
-        
         .checkbox-label input {
             margin-right: 8px;
             width: auto;
         }
-        
         .alert {
             padding: 15px;
             margin-bottom: 20px;
             border-radius: 4px;
-            display: flex;
-            align-items: center;
-            animation: fadeIn 0.5s;
         }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
         .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
         }
-        
         .alert-danger {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+        /* Tab styles */
+        .tabs {
+            display: flex;
+            margin: 0 32px 24px 32px;
+            border-bottom: 2px solid var(--border);
+            background: var(--bg-secondary);
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
         }
         
-        .alert-warning {
-            background-color: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeeba;
+        .tab {
+            padding: 16px 24px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            position: relative;
         }
         
-        .alert-icon {
-            margin-right: 10px;
-            font-size: 18px;
+        .tab:hover {
+            color: var(--text-primary);
+            background: rgba(79, 70, 229, 0.1);
         }
         
+        .tab.active {
+            background: linear-gradient(135deg, var(--accent-primary), #6366f1);
+            color: white;
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent-primary);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
         .badge {
             display: inline-block;
-            padding: 3px 8px;
-            border-radius: 50px;
+            padding: 3px 7px;
             font-size: 12px;
-            font-weight: bold;
+            border-radius: 10px;
         }
-        
         .badge-success {
-            background-color: var(--success-color);
-            color: white;
+            background-color: #dff0d8;
+            color: #3c763d;
         }
-        
         .badge-danger {
-            background-color: var(--danger-color);
-            color: white;
+            background-color: #f2dede;
+            color: #a94442;
         }
-        
         .badge-warning {
-            background-color: var(--warning-color);
-            color: white;
+            background-color: #fcf8e3;
+            color: #8a6d3b;
         }
-        
-        .badge-primary {
-            background-color: var(--secondary-color);
-            color: white;
+        /* Estilos adicionales para subtabs */
+        .subtab-content {
+            display: none;
+            padding-top: 15px;
         }
-        
-        .header {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 15px 0;
-            margin-bottom: 20px;
+        .subtab-content.active {
+            display: block;
         }
-        
-        .header-content {
+        .tabs {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
         }
-        
-        .logo {
-            font-size: 20px;
-            font-weight: bold;
+        .tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            margin-right: 5px;
         }
-        
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            margin-left: 15px;
-            opacity: 0.8;
-            transition: opacity 0.3s;
-        }
-        
-        .nav-links a:hover {
-            opacity: 1;
-        }
-        
-        .chart-container {
-            height: 300px;
-            margin-bottom: 20px;
-        }
-        
-        .stats-container {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-        
-        .stat-card {
-            flex: 1;
+        .tab.active {
             background-color: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            min-width: 200px;
+            border-color: #ddd;
+            border-bottom-color: white;
+            margin-bottom: -1px;
+            border-radius: 4px 4px 0 0;
         }
-        
-        .stat-card h3 {
-            margin-top: 0;
-            color: var(--primary-color);
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
         }
-        
-        .stat-card .value {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 10px 0;
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 12px;
+            margin-right: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+            background-color: #4CAF50;
+            color: white;
         }
-        
-        .search-box {
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-        }
-        
-        .search-box input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-size: 14px;
+        .btn-small.btn-danger {
+            background-color: #f44336;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="header">
-        <div class="container header-content">
-            <div class="logo">MRSeqStudio Admin</div>
-            <div class="nav-links">
-                <a href="/app">Volver a la App</a>
-                <a href="/logout">Cerrar Sesión</a>
+    <div class="container">
+        <div class="navbar">
+            <h1>Administration Panel</h1>
+            <div>
+                <button onclick="location.href='/app'" class="btn btn-info">← Back to App</button>
+                <button onclick="location.href='/logout'" class="btn btn-danger">Logout</button>
             </div>
         </div>
-    </div>
 
-    <div class="container">
         <div id="alertContainer"></div>
         
+        <!-- Tab system -->
         <div class="tabs">
-            <div class="tab active" data-tab="users">Usuarios</div>
-            <div class="tab" data-tab="stats">Estadísticas</div>
+            <div class="tab active" data-tab="users">User Management</div>
+            <div class="tab" data-tab="sequences">Sequences & Results</div>
+            <div class="tab" data-tab="stats">Statistics</div>
         </div>
         
-        <div class="tab-content active" id="users-tab">
-            <div class="card">
-                <div class="card-header">
-                    Gestión de Usuarios
-                    <button id="btnAddUser" class="btn btn-primary">+ Añadir Usuario</button>
-                </div>
-                <div class="card-body">
-                    <div class="search-box">
-                        <input type="text" id="userSearch" placeholder="Buscar usuario...">
-                    </div>
-                    <table id="usersTable">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Usuario</th>
-                                <th>Email</th>
-                                <th>Premium</th>
-                                <th>Admin</th>
-                                <th>Almacenamiento</th>
-                                <th>Fecha creación</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Los usuarios se cargarán aquí dinámicamente -->
-                        </tbody>
-                    </table>
-                </div>
+        <!-- Users Tab -->
+        <div id="usersTab" class="tab-content active">
+            <div style="padding: 0 32px;">
+                <button id="btnAddUser" class="btn btn-primary">+ Add User</button>
+                
+                <table id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Premium</th>
+                            <th>Admin</th>
+                            <th>GPU Access</th>
+                            <th>Daily Sequences</th>
+                            <th>Storage</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Users will be loaded here dynamically -->
+                    </tbody>
+                </table>
             </div>
         </div>
         
-        <div class="tab-content" id="stats-tab">
-            <div class="stats-container">
-                <div class="stat-card">
-                    <h3>Total Usuarios</h3>
-                    <div class="value" id="totalUsers">0</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Secuencias Hoy</h3>
-                    <div class="value" id="sequencesToday">0</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Usuarios Activos</h3>
-                    <div class="value" id="activeUsers">0</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Usuarios Premium</h3>
-                    <div class="value" id="premiumUsers">0</div>
-                </div>
+        <!-- Sequences & Results Tab -->
+        <div id="sequencesTab" class="tab-content">
+            <div class="tabs" style="margin: 20px 32px 0 32px;">
+                <div class="tab active" data-subtab="results">Results</div>
+                <div class="tab" data-subtab="sequences">Sequences</div>
             </div>
             
-            <div class="card">
-                <div class="card-header">Uso de Secuencias (Últimos 30 días)</div>
-                <div class="card-body">
-                    <div class="chart-container">
-                        <canvas id="sequencesChart"></canvas>
+            <!-- Results Subtab -->
+            <div id="resultsSubtab" class="subtab-content active">
+                <div style="padding: 0 32px;">
+                    <h2>Simulation Results</h2>
+                    <div class="table-container">
+                        <table id="resultsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>User</th>
+                                    <th>Sequence ID</th>
+                                    <th>File Path</th>
+                                    <th>Size (MB)</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Results will be loaded here dynamically -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
             
-            <div class="card">
-                <div class="card-header">Top Usuarios por Uso</div>
-                <div class="card-body">
-                    <table id="topUsersTable">
-                        <thead>
-                            <tr>
-                                <th>Usuario</th>
-                                <th>Secuencias Usadas</th>
-                                <th>Porcentaje del Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Los datos se cargarán aquí dinámicamente -->
-                        </tbody>
-                    </table>
+            <!-- Sequences Subtab -->
+            <div id="sequencesSubtab" class="subtab-content">
+                <div style="padding: 0 32px;">
+                    <h2>Sequence Registry</h2>
+                    <div class="table-container">
+                        <table id="sequencesTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>User</th>
+                                    <th>Sequence ID</th>
+                                    <th>Date</th>
+                                    <th>Created At</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Sequences will be loaded here dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <!-- Modal para añadir/editar usuario -->
-    <div id="userModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2 id="modalTitle">Añadir Usuario</h2>
-            <form id="userForm">
-                <input type="hidden" id="userId">
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="username">Nombre de Usuario:</label>
-                        <input type="text" id="username" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="email">Email:</label>
-                        <input type="email" id="email" required>
-                    </div>
+        
+        <!-- Statistics Tab -->
+        <div id="statsTab" class="tab-content">
+            <div style="padding: 0 32px;">
+                <h2>Usage Statistics</h2>
+                <div id="statsContent">
+                    <p>Loading statistics...</p>
                 </div>
-                
-                <div class="form-group">
-                    <label for="password">Contraseña:</label>
-                    <input type="password" id="password">
-                    <small id="passwordHint">Dejar en blanco para mantener la actual (en edición)</small>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Tipo de cuenta:</label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="isPremium"> Usuario Premium
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="isAdmin"> Administrador
-                        </label>
+            </div>
+        </div>
+        
+        <!-- User Add/Edit Modal -->
+        <div id="userModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2 id="modalTitle">Add User</h2>
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="username">Username:</label>
+                            <input type="text" id="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email:</label>
+                            <input type="email" id="email" required>
+                        </div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="storageQuotaMB">Cuota de almacenamiento (MB):</label>
-                        <input type="number" id="storageQuotaMB" min="0.1" step="0.1" value="0.5">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password">
+                        <small id="passwordHint" style="color: var(--text-muted); font-size: 12px;">Leave blank to keep current password (when editing)</small>
                     </div>
-                </div>
-                
-                <button type="submit" class="btn btn-primary">Guardar</button>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Modal para resetear contraseña -->
-    <div id="resetPasswordModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Resetear Contraseña</h2>
-            <p>Establecer nueva contraseña para <strong><span id="resetUsername"></span></strong>:</p>
-            <form id="resetPasswordForm">
-                <input type="hidden" id="resetUserId">
-                <div class="form-group">
-                    <label for="newPassword">Nueva Contraseña:</label>
-                    <input type="password" id="newPassword" required minlength="6">
-                </div>
-                <div class="form-group">
-                    <label for="confirmPassword">Confirmar Contraseña:</label>
-                    <input type="password" id="confirmPassword" required minlength="6">
-                </div>
-                <button type="submit" class="btn btn-warning">Resetear Contraseña</button>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Modal de confirmación para eliminar -->
-    <div id="deleteModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Confirmar Eliminación</h2>
-            <p>¿Está seguro de que desea eliminar al usuario <strong><span id="deleteUsername"></span></strong>?</p>
-            <p>Esta acción eliminará todos los datos asociados al usuario y no se puede deshacer.</p>
-            <input type="hidden" id="deleteUserId">
-            <button id="confirmDelete" class="btn btn-danger">Eliminar</button>
-            <button id="cancelDelete" class="btn">Cancelar</button>
-        </div>
-    </div>
-    
-    <!-- Modal para ver uso de secuencias -->
-    <div id="userSequencesModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Uso de Secuencias: <span id="sequencesUsername"></span></h2>
-            <div class="chart-container">
-                <canvas id="userSequencesChart"></canvas>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Account Type:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="isPremium"> Premium User
+                                </label>
+                            </div>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="isAdmin"> Administrator
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Resource Access:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="gpuAccess"> GPU Access
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="maxDailySequences">Max Daily Sequences:</label>
+                            <input type="number" id="maxDailySequences" min="1" value="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="storageQuotaMB">Storage Quota (MB):</label>
+                            <input type="number" id="storageQuotaMB" min="0.1" step="0.1" value="0.5">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </form>
             </div>
-            <table id="userSequencesTable">
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Secuencias Usadas</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Los datos se cargarán aquí dinámicamente -->
-                </tbody>
-            </table>
+        </div>
+        
+        <!-- Delete Confirmation Modal -->
+        <div id="deleteModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Confirm Deletion</h2>
+                <p>Are you sure you want to delete user <strong><span id="deleteUsername"></span></strong>?</p>
+                <p>This action cannot be undone and will delete all data associated with the user.</p>
+                <input type="hidden" id="deleteUserId">
+                <div style="margin-top: 24px;">
+                    <button id="confirmDelete" class="btn btn-danger">Delete</button>
+                    <button id="cancelDelete" class="btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Result Details Modal -->
+        <div id="resultDetailsModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Result Details</h2>
+                <div id="resultDetailsContent">
+                    <!-- Details will be loaded here dynamically -->
+                </div>
+                <div class="form-row" style="margin-top: 24px;">
+                    <button id="deleteResultBtn" class="btn btn-danger">Delete Result</button>
+                    <button class="btn" onclick="document.getElementById('resultDetailsModal').style.display = 'none'">Close</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         // Variables globales
         let users = [];
-        let sequenceStats = {
-            daily_stats: [],
-            top_users: []
-        };
-        let userCharts = {};
-        
-        // Referencias a elementos DOM
+        let results = [];
+        let usageData = [];
         const modal = document.getElementById("userModal");
-        const resetPasswordModal = document.getElementById("resetPasswordModal");
         const deleteModal = document.getElementById("deleteModal");
-        const userSequencesModal = document.getElementById("userSequencesModal");
-        const userForm = document.getElementById("userForm");
-        const resetPasswordForm = document.getElementById("resetPasswordForm");
+        const form = document.getElementById("userForm");
         
-        // Event Listeners para las pestañas
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                // Desactivar todas las pestañas
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-                
-                // Activar la pestaña actual
-                tab.classList.add('active');
-                document.getElementById(`${tab.dataset.tab}-tab`).classList.add('active');
-                
-                // Si es la pestaña de estadísticas, cargar datos
-                if (tab.dataset.tab === 'stats') {
-                    loadStats();
-                }
-            });
+        // Cargar datos al iniciar
+        document.addEventListener("DOMContentLoaded", function() {
+            loadUsers();
+            setupTabs();
         });
         
-        // Cargar usuarios al iniciar
-        document.addEventListener("DOMContentLoaded", () => {
-            loadUsers();
+        // Configurar sistema de pestañas
+        function setupTabs() {
+            const tabs = document.querySelectorAll('.tab');
             
-            // Event Listeners para las modales
-            document.querySelectorAll(".modal .close").forEach(closeBtn => {
-                closeBtn.addEventListener("click", () => {
-                    closeBtn.closest(".modal").style.display = "none";
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Desactivar todas las pestañas
+                    tabs.forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                    
+                    // Activar la pestaña seleccionada
+                    tab.classList.add('active');
+                    const tabName = tab.dataset.tab;
+                    document.getElementById(`${tabName}Tab`).classList.add('active');
+                    
+                    // Cargar datos según la pestaña
+                    if (tabName === 'sequences' && results.length === 0) {
+                        loadResults();
+                        loadSequenceUsage();
+                    } else if (tabName === 'stats') {
+                        loadStats();
+                    }
                 });
             });
-            
-            document.getElementById("btnAddUser").addEventListener("click", showAddUserModal);
-            document.getElementById("confirmDelete").addEventListener("click", deleteUser);
-            document.getElementById("cancelDelete").addEventListener("click", () => {
-                deleteModal.style.display = "none";
-            });
-            
-            userForm.addEventListener("submit", saveUser);
-            resetPasswordForm.addEventListener("submit", resetPassword);
-            
-            // Filtro de búsqueda
-            document.getElementById("userSearch").addEventListener("input", filterUsers);
-        });
+        }
         
-        // Funciones CRUD y de UI
+        // Configurar subtabs para secuencias y resultados
+        function setupSubtabs() {
+            const subtabs = document.querySelectorAll('[data-subtab]');
+            subtabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Desactivar todas las pestañas
+                    subtabs.forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.subtab-content').forEach(content => content.classList.remove('active'));
+                    
+                    // Activar la pestaña seleccionada
+                    tab.classList.add('active');
+                    const subtabName = tab.dataset.subtab;
+                    document.getElementById(`${subtabName}Subtab`).classList.add('active');
+                    
+                    // Cargar datos específicos
+                    if (subtabName === 'sequences') {
+                        loadSequences();
+                    } else if (subtabName === 'results') {
+                        loadResults();
+                    }
+                });
+            });
+        }
+        
+        // Event listeners
+        document.getElementById("btnAddUser").addEventListener("click", showAddUserModal);
+        document.querySelector("#userModal .close").addEventListener("click", () => modal.style.display = "none");
+        document.querySelector("#deleteModal .close").addEventListener("click", () => deleteModal.style.display = "none");
+        document.getElementById("cancelDelete").addEventListener("click", () => deleteModal.style.display = "none");
+        document.getElementById("confirmDelete").addEventListener("click", deleteUser);
+        form.addEventListener("submit", saveUser);
+        
+        // Funciones para cargar datos
         function loadUsers() {
             fetch('/api/admin/users')
-                .then(handleResponse)
+                .then(response => {
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            showAlert("You don't have administrator permissions to access this page", "danger");
+                            setTimeout(() => {
+                                window.location.href = "/app";
+                            }, 2000);
+                            throw new Error("Forbidden");
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     users = data;
                     renderUsers();
-                    updateUserStats();
+                })
+                .catch(error => {
+                    console.error('Error fetching users:', error);
+                    showAlert("Error loading users: " + error.message, "danger");
+                });
+        }
+        
+        function loadResults() {
+            fetch('/api/admin/results')
+                .then(handleResponse)
+                .then(data => {
+                    results = data;
+                    renderResults();
+                })
+                .catch(handleError);
+        }
+        
+        function loadSequences() {
+            fetch('/api/admin/sequences')
+                .then(handleResponse)
+                .then(data => {
+                    const tbody = document.querySelector('#sequencesTable tbody');
+                    tbody.innerHTML = '';
+                    
+                    data.forEach(seq => {
+                        const row = document.createElement('tr');
+                        const createdAt = new Date(seq.created_at);
+                        
+                        row.innerHTML = `
+                            <td>${seq.id}</td>
+                            <td>${seq.username}</td>
+                            <td>${seq.sequence_id}</td>
+                            <td>${formatDate(seq.date, true)}</td>
+                            <td>${formatTime(seq.created_at)}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                })
+                .catch(handleError);
+        }
+        
+        function loadSequenceUsage() {
+            fetch('/api/admin/sequence-usage')
+                .then(handleResponse)
+                .then(data => {
+                    usageData = data;
+                    renderUsageData();
                 })
                 .catch(handleError);
         }
@@ -653,12 +734,12 @@
             fetch('/api/admin/stats/sequences')
                 .then(handleResponse)
                 .then(data => {
-                    sequenceStats = data;
-                    renderSequenceStats();
+                    renderStats(data);
                 })
                 .catch(handleError);
         }
         
+        // Functions to render data
         function renderUsers() {
             const tbody = document.querySelector("#usersTable tbody");
             tbody.innerHTML = '';
@@ -666,28 +747,27 @@
             users.forEach(user => {
                 const row = document.createElement('tr');
                 
+                // Format privilege values
+                const gpuAccess = user.gpu_access ? "Yes" : "No";
+                const maxSequences = user.max_daily_sequences || "-";
+                const storageQuota = user.storage_quota_mb ? user.storage_quota_mb + " MB" : "-";
+                
                 row.innerHTML = `
                     <td>${user.id}</td>
                     <td>${user.username}</td>
                     <td>${user.email}</td>
-                    <td>${user.is_premium ? '<span class="badge badge-success">Sí</span>' : 'No'}</td>
-                    <td>${user.is_admin ? '<span class="badge badge-primary">Sí</span>' : 'No'}</td>
-                    <td>${user.storage_quota_mb} MB</td>
+                    <td>${user.is_premium ? "Yes" : "No"}</td>
+                    <td>${user.is_admin ? "Yes" : "No"}</td>
+                    <td>${gpuAccess}</td>
+                    <td>${maxSequences}</td>
+                    <td>${storageQuota}</td>
                     <td>${formatDate(user.created_at)}</td>
                     <td>
-                        <button class="btn btn-warning btn-edit" data-id="${user.id}">Editar</button>
+                        <button class="btn btn-warning btn-edit" data-id="${user.id}">Edit</button>
                         <button class="btn btn-danger btn-delete" data-id="${user.id}" 
                             data-username="${user.username}"
-                            ${user.is_admin ? 'disabled title="No se puede eliminar un administrador"' : ''}>
-                            Eliminar
-                        </button>
-                        <button class="btn btn-primary btn-sequences" data-id="${user.id}" 
-                            data-username="${user.username}">
-                            Uso
-                        </button>
-                        <button class="btn btn-warning btn-reset-password" data-id="${user.id}" 
-                            data-username="${user.username}">
-                            Resetear
+                            ${user.is_admin ? 'disabled title="Cannot delete an administrator"' : ''}>
+                            Delete
                         </button>
                     </td>
                 `;
@@ -695,7 +775,7 @@
                 tbody.appendChild(row);
             });
             
-            // Event listeners para botones
+            // Añadir event listeners a los botones
             document.querySelectorAll('.btn-edit').forEach(btn => {
                 btn.addEventListener('click', () => showEditUserModal(parseInt(btn.dataset.id)));
             });
@@ -705,185 +785,132 @@
                     btn.addEventListener('click', () => showDeleteConfirmation(parseInt(btn.dataset.id), btn.dataset.username));
                 }
             });
-            
-            document.querySelectorAll('.btn-sequences').forEach(btn => {
-                btn.addEventListener('click', () => showUserSequences(parseInt(btn.dataset.id), btn.dataset.username));
-            });
-            
-            document.querySelectorAll('.btn-reset-password').forEach(btn => {
-                btn.addEventListener('click', () => showResetPasswordModal(parseInt(btn.dataset.id), btn.dataset.username));
-            });
         }
         
-        function filterUsers() {
-            const searchTerm = document.getElementById("userSearch").value.toLowerCase();
-            const rows = document.querySelectorAll("#usersTable tbody tr");
-            
-            rows.forEach(row => {
-                const username = row.cells[1].textContent.toLowerCase();
-                const email = row.cells[2].textContent.toLowerCase();
-                
-                if (username.includes(searchTerm) || email.includes(searchTerm)) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
-            });
-        }
-        
-        function updateUserStats() {
-            const totalUsers = users.length;
-            const premiumUsers = users.filter(user => user.is_premium).length;
-            
-            document.getElementById("totalUsers").textContent = totalUsers;
-            document.getElementById("premiumUsers").textContent = premiumUsers;
-            document.getElementById("activeUsers").textContent = "--"; // Este dato vendría de otra fuente
-        }
-        
-        function renderSequenceStats() {
-            if (!sequenceStats || !sequenceStats.daily_stats || !sequenceStats.top_users) {
-                return;
-            }
-            
-            // Preparar datos para el gráfico
-            const dates = [];
-            const counts = [];
-            
-            sequenceStats.daily_stats.forEach(stat => {
-                dates.push(formatShortDate(stat.date));
-                counts.push(stat.total_sequences);
-            });
-            
-            // Actualizar estadística de secuencias hoy
-            const today = sequenceStats.daily_stats.find(stat => 
-                new Date(stat.date).toDateString() === new Date().toDateString()
-            );
-            document.getElementById("sequencesToday").textContent = today ? today.total_sequences : "0";
-            
-            // Crear/actualizar gráfico
-            const ctx = document.getElementById('sequencesChart').getContext('2d');
-            
-            if (window.sequencesChart) {
-                window.sequencesChart.destroy();
-            }
-            
-            window.sequencesChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: dates.reverse(),
-                    datasets: [{
-                        label: 'Secuencias Diarias',
-                        data: counts.reverse(),
-                        backgroundColor: 'rgba(52, 152, 219, 0.2)',
-                        borderColor: 'rgba(52, 152, 219, 1)',
-                        borderWidth: 2,
-                        pointBackgroundColor: 'rgba(52, 152, 219, 1)',
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-            
-            // Renderizar tabla de top usuarios
-            const tbody = document.querySelector("#topUsersTable tbody");
+        function renderResults() {
+            const tbody = document.querySelector("#resultsTable tbody");
             tbody.innerHTML = '';
             
-            // Calcular total de secuencias para porcentajes
-            const totalSequences = sequenceStats.top_users.reduce((sum, user) => sum + user.total_sequences, 0);
-            
-            sequenceStats.top_users.forEach(user => {
+            results.forEach(result => {
                 const row = document.createElement('tr');
-                const percentage = ((user.total_sequences / totalSequences) * 100).toFixed(1);
-                
                 row.innerHTML = `
-                    <td>${user.username}</td>
-                    <td>${user.total_sequences}</td>
-                    <td>${percentage}%</td>
+                    <td>${result.id}</td>
+                    <td>${result.username}</td>
+                    <td>${result.sequence_id}</td>
+                    <td>${result.file_path}</td>
+                    <td>${result.file_size_mb}</td>
+                    <td>${formatDate(result.created_at)}</td>
+                    <td>
+                        <button class="btn-small view-result" data-id="${result.id}">View</button>
+                        <button class="btn-small btn-danger delete-result" data-id="${result.id}">Delete</button>
+                    </td>
                 `;
-                
+                tbody.appendChild(row);
+            });
+            
+            // Añadir eventos a los botones
+            document.querySelectorAll('.view-result').forEach(btn => {
+                btn.addEventListener('click', () => showResultDetails(btn.dataset.id));
+            });
+            
+            document.querySelectorAll('.delete-result').forEach(btn => {
+                btn.addEventListener('click', () => confirmDeleteResult(btn.dataset.id));
+            });
+        }
+        
+        function renderUsageData() {
+            const tbody = document.querySelector("#usageTable tbody");
+            tbody.innerHTML = '';
+            
+            usageData.forEach(usage => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${usage.username}</td>
+                    <td>${formatDate(usage.date, true)}</td>
+                    <td>${usage.sequences_used}</td>
+                `;
                 tbody.appendChild(row);
             });
         }
         
-        function showUserSequences(userId, username) {
-            document.getElementById("sequencesUsername").textContent = username;
+        function renderStats(data) {
+            const statsContent = document.getElementById('statsContent');
             
-            fetch(`/api/admin/users/${userId}/sequences`)
-                .then(handleResponse)
-                .then(data => {
-                    // Preparar datos para el gráfico
-                    const dates = [];
-                    const counts = [];
-                    
-                    data.forEach(item => {
-                        dates.push(formatShortDate(item.date));
-                        counts.push(item.sequences_used);
-                    });
-                    
-                    // Crear/actualizar gráfico
-                    const ctx = document.getElementById('userSequencesChart').getContext('2d');
-                    
-                    if (userCharts[userId]) {
-                        userCharts[userId].destroy();
-                    }
-                    
-                    userCharts[userId] = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: dates,
-                            datasets: [{
-                                label: 'Secuencias Usadas',
-                                data: counts,
-                                backgroundColor: 'rgba(46, 204, 113, 0.6)',
-                                borderColor: 'rgba(46, 204, 113, 1)',
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                y: {
-                                    beginAtZero: true
-                                }
-                            }
-                        }
-                    });
-                    
-                    // Renderizar tabla
-                    const tbody = document.querySelector("#userSequencesTable tbody");
-                    tbody.innerHTML = '';
-                    
-                    data.forEach(item => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${formatDate(item.date)}</td>
-                            <td>${item.sequences_used}</td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                    
-                    userSequencesModal.style.display = "block";
-                })
-                .catch(handleError);
+            // Crear visualización de estadísticas
+            let html = `
+                <div class="form-row">
+                    <div class="form-group">
+                        <h3>Daily Sequence Usage (Last 30 Days)</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Total Sequences</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            // Añadir datos diarios
+            data.daily_stats.forEach(stat => {
+                html += `
+                    <tr>
+                        <td>${formatDate(stat.date, true)}</td>
+                        <td>${stat.total_sequences}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <h3>Most Active Users (Last 30 Days)</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Total Sequences</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            // Añadir datos de usuarios
+            data.top_users.forEach(user => {
+                html += `
+                    <tr>
+                        <td>${user.username}</td>
+                        <td>${user.total_sequences}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            statsContent.innerHTML = html;
         }
         
+        // Modal functions
         function showAddUserModal() {
-            document.getElementById("modalTitle").textContent = "Añadir Usuario";
-            userForm.reset();
+            document.getElementById("modalTitle").textContent = "Add User";
+            form.reset();
             document.getElementById("userId").value = "";
             document.getElementById("username").disabled = false;
             document.getElementById("passwordHint").style.display = "none";
             document.getElementById("password").required = true;
+            document.getElementById("maxDailySequences").value = 10;
             document.getElementById("storageQuotaMB").value = 0.5;
+            document.getElementById("gpuAccess").checked = false;
             modal.style.display = "block";
         }
         
@@ -891,7 +918,7 @@
             const user = users.find(u => u.id === userId);
             if (!user) return;
             
-            document.getElementById("modalTitle").textContent = "Editar Usuario";
+            document.getElementById("modalTitle").textContent = "Edit User";
             document.getElementById("userId").value = user.id;
             document.getElementById("username").value = user.username;
             document.getElementById("username").disabled = true;
@@ -899,25 +926,92 @@
             document.getElementById("password").value = "";
             document.getElementById("password").required = false;
             document.getElementById("passwordHint").style.display = "block";
+            
+            // User status
             document.getElementById("isPremium").checked = user.is_premium;
             document.getElementById("isAdmin").checked = user.is_admin;
-            document.getElementById("storageQuotaMB").value = user.storage_quota_mb;
+            
+            // Privileges
+            document.getElementById("gpuAccess").checked = user.gpu_access;
+            document.getElementById("maxDailySequences").value = user.max_daily_sequences || 10;
+            document.getElementById("storageQuotaMB").value = user.storage_quota_mb || 0.5;
             
             modal.style.display = "block";
-        }
-        
-        function showResetPasswordModal(userId, username) {
-            document.getElementById("resetUserId").value = userId;
-            document.getElementById("resetUsername").textContent = username;
-            document.getElementById("newPassword").value = "";
-            document.getElementById("confirmPassword").value = "";
-            resetPasswordModal.style.display = "block";
         }
         
         function showDeleteConfirmation(userId, username) {
             document.getElementById("deleteUserId").value = userId;
             document.getElementById("deleteUsername").textContent = username;
             deleteModal.style.display = "block";
+        }
+        
+        function showResultDetails(resultId) {
+            fetch(`/api/admin/results/${resultId}`)
+                .then(handleResponse)
+                .then(data => {
+                    const content = document.getElementById('resultDetailsContent');
+                    
+                    let fileStatus = data.file_exists ? 
+                        '<span class="badge badge-success">File Available</span>' : 
+                        '<span class="badge badge-danger">File Not Found</span>';
+                    
+                    content.innerHTML = `
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>ID:</label>
+                                <p>${data.id}</p>
+                            </div>
+                            <div class="form-group">
+                                <label>User:</label>
+                                <p>${data.username}</p>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Sequence ID:</label>
+                                <p>${data.sequence_id}</p>
+                            </div>
+                            <div class="form-group">
+                                <label>Created:</label>
+                                <p>${formatDate(data.created_at, true)} ${formatTime(data.created_at)}</p>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>File Path:</label>
+                            <p>${data.file_path} ${fileStatus}</p>
+                        </div>
+                        <div class="form-group">
+                            <label>Size:</label>
+                            <p>${data.file_size_mb.toFixed(2)} MB</p>
+                        </div>
+                    `;
+                    
+                    // Guardar el ID para el botón de eliminar
+                    document.getElementById('deleteResultBtn').dataset.id = data.id;
+                    
+                    // Mostrar modal
+                    document.getElementById('resultDetailsModal').style.display = 'block';
+                })
+                .catch(handleError);
+        }
+        
+        function confirmDeleteResult(resultId) {
+            if (confirm('Are you sure you want to delete this result? This action will also delete the associated file.')) {
+                deleteResult(resultId);
+            }
+        }
+        
+        function deleteResult(resultId) {
+            fetch(`/api/admin/results/${resultId}`, {
+                method: 'DELETE'
+            })
+            .then(handleResponse)
+            .then(() => {
+                showAlert('Result deleted successfully', 'success');
+                document.getElementById('resultDetailsModal').style.display = 'none';
+                loadResults();
+            })
+            .catch(handleError);
         }
         
         function saveUser(event) {
@@ -932,6 +1026,8 @@
                 email: document.getElementById("email").value,
                 is_premium: document.getElementById("isPremium").checked,
                 is_admin: document.getElementById("isAdmin").checked,
+                gpu_access: document.getElementById("gpuAccess").checked,
+                max_daily_sequences: parseInt(document.getElementById("maxDailySequences").value),
                 storage_quota_mb: parseFloat(document.getElementById("storageQuotaMB").value)
             };
             
@@ -952,7 +1048,7 @@
                 })
                 .then(handleResponse)
                 .then(() => {
-                    showAlert("Usuario actualizado correctamente", "success");
+                    showAlert("User updated successfully", "success");
                     loadUsers();
                     modal.style.display = "none";
                 })
@@ -968,41 +1064,12 @@
                 })
                 .then(handleResponse)
                 .then(() => {
-                    showAlert("Usuario creado correctamente", "success");
+                    showAlert("User created successfully", "success");
                     loadUsers();
                     modal.style.display = "none";
                 })
                 .catch(handleError);
             }
-        }
-        
-        function resetPassword(event) {
-            event.preventDefault();
-            
-            const userId = document.getElementById("resetUserId").value;
-            const newPassword = document.getElementById("newPassword").value;
-            const confirmPassword = document.getElementById("confirmPassword").value;
-            
-            if (newPassword !== confirmPassword) {
-                showAlert("Las contraseñas no coinciden", "danger");
-                return;
-            }
-            
-            fetch(`/api/admin/users/${userId}/reset-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    new_password: newPassword
-                })
-            })
-            .then(handleResponse)
-            .then(() => {
-                showAlert("Contraseña reseteada correctamente", "success");
-                resetPasswordModal.style.display = "none";
-            })
-            .catch(handleError);
         }
         
         function deleteUser() {
@@ -1013,7 +1080,7 @@
             })
             .then(handleResponse)
             .then(() => {
-                showAlert("Usuario eliminado correctamente", "success");
+                showAlert("User deleted successfully", "success");
                 loadUsers();
                 deleteModal.style.display = "none";
             })
@@ -1034,12 +1101,7 @@
                         throw error;
                     });
             }
-            
-            if (response.headers.get("Content-Type")?.includes("application/json")) {
-                return response.json();
-            }
-            
-            return response;
+            return response.json().catch(() => ({})); // Manejar respuestas vacías
         }
         
         function handleError(error) {
@@ -1051,47 +1113,39 @@
             const alertContainer = document.getElementById("alertContainer");
             const alert = document.createElement("div");
             alert.className = `alert alert-${type}`;
-            
-            let icon = "";
-            if (type === "success") icon = "✅";
-            else if (type === "danger") icon = "❌";
-            else if (type === "warning") icon = "⚠️";
-            
-            alert.innerHTML = `
-                <span class="alert-icon">${icon}</span>
-                ${message}
-            `;
+            alert.textContent = message;
             
             alertContainer.innerHTML = '';
             alertContainer.appendChild(alert);
             
             setTimeout(() => {
-                alert.style.opacity = "0";
-                setTimeout(() => alert.remove(), 300);
+                alert.remove();
             }, 5000);
         }
         
-        function formatDate(dateString) {
+        function formatDate(dateString, dateOnly = false) {
             if (!dateString) return '-';
             
             try {
                 const date = new Date(dateString);
+                if (dateOnly) {
+                    return date.toLocaleDateString();
+                }
                 return date.toLocaleString();
             } catch (e) {
                 return dateString;
             }
         }
         
-        function formatShortDate(dateString) {
-            if (!dateString) return '-';
-            
-            try {
-                const date = new Date(dateString);
-                return `${date.getDate()}/${date.getMonth()+1}`;
-            } catch (e) {
-                return dateString;
-            }
+        function formatTime(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
         }
     </script>
 </body>
 </html>
+

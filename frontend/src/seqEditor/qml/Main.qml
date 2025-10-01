@@ -209,7 +209,7 @@ ApplicationWindow {
             var durationActive =    [1,2,3,4].includes(code);
             var linesActive =       [5,6].includes(code);
             var samplesActive =     [4,5,6].includes(code);
-            var adcDelayActive =    [4].includes(code);
+            var adcActive =         [4].includes(code);
             var fovActive =         [5,6].includes(code);
             var rfActive =          [1,6].includes(code);
             var gradientsActive =   [1,3,4].includes(code);
@@ -228,7 +228,8 @@ ApplicationWindow {
             if(durationActive)  {groupList.setProperty(groupList.count-1,           "duration",     blockList.get(blockID+j).duration);}
             if(linesActive)     {groupList.setProperty(groupList.count-1,           "lines",        blockList.get(blockID+j).lines);}
             if(samplesActive)   {groupList.setProperty(groupList.count-1,           "samples",      blockList.get(blockID+j).samples);}
-            if(adcDelayActive)  {groupList.setProperty(groupList.count-1,           "adcDelay",     blockList.get(blockID+j).adcDelay);}
+            if(adcActive)       {groupList.setProperty(groupList.count-1,           "adcDelay",     blockList.get(blockID+j).adcDelay);
+                                 groupList.setProperty(groupList.count-1,           "adcPhase",     blockList.get(blockID+j).adcPhase);}
             if(fovActive)       {groupList.setProperty(groupList.count-1,           "fov",          blockList.get(blockID+j).fov);}
             if(rfActive)        {groupList.get(groupList.count-1).rf.append(       {"select":       blockList.get(blockID+j).rf.get(0).select,
                                                                                     "shape":        blockList.get(blockID+j).rf.get(0).shape,
@@ -541,10 +542,10 @@ ApplicationWindow {
         backend.plotSequence(scanstore, seqstore);
     }
 
-    function simulate(phantom_string){
+    function simulate(){
         var scanstore = scannerToJSON();
         var seqstore  = seqToJSON();
-        backend.simulate(phantom_string, seqstore, scanstore);
+        backend.simulate(seqstore, scanstore);
     }
 
     // functions getMaxOfArray and getMinOfArray
@@ -562,9 +563,9 @@ ApplicationWindow {
     // -1:         scanner panel
     // 0,1,2,3...: sequence block panel
     function applyChanges(idNumber){
-        if (idNumber === variablesMenu.menuID){       // Apply changes to the variables panel
-            variablesMenu.applyVariablesChanges();
-        } if (idNumber >= 0){                         // Apply changes to the sequence block panel
+        // Variables (idNumber < 0) are now handled directly by each TextInputItem
+        // No need to call applyVariablesChanges() anymore
+        if (idNumber >= 0){                         // Apply changes to the sequence block panel
             configMenu.applyBlockChanges(idNumber); 
         } if (idNumber === -3) {
             simulatorMenu.applyPhantomChanges();
@@ -572,31 +573,49 @@ ApplicationWindow {
     }
 
     // function evalExpression() evaluates a mathematical expression which can contain variable names
-    function evalExpression(expression) {
+    function evalExpression(expression) { // TODO; Check security problems with this function. Lista blanca de operadores
         try {
-            if (expression === "") {
+            if (expression === "" || expression === null || expression === undefined) {
                 return 0;
-            }
+            }  
             // Convertir variablesList en un objeto de variables
             let variables = {};
             for (let i = 0; i < variablesList.count; i++) {
                 let item = variablesList.get(i);
-                variables[item.name] = item.value;
+                if (item && item.name && item.value !== undefined) {
+                    variables[item.name] = item.value;
+                }
             }
 
             // Reemplazar nombres de variables en la expresión con sus valores
             let replacedExpression = expression.replace(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g, match => {
                 if (variables.hasOwnProperty(match)) {
-                    return variables[match]; // Sustituir por el valor de la variable
+                    let value = variables[match];
+                    // Ensure the value is a valid number
+                    if (isNaN(value) || !isFinite(value)) {
+                        console.warn("Variable '" + match + "' has invalid value: " + value);
+                        return "0";
+                    }
+                    return value; // Sustituir por el valor de la variable
                 } else {
-                    return NaN
+                    console.warn("Variable '" + match + "' not found in variables list");
+                    return "0"; // Use 0 instead of NaN to prevent propagation
                 }
             });
 
             // Evaluar la expresión matemática
-            return new Function(`return (${replacedExpression});`)();
+            let result = new Function(`return (${replacedExpression});`)();
+            
+            // Validate the result
+            if (isNaN(result) || !isFinite(result)) {
+                console.warn("Expression evaluation resulted in invalid value: " + expression);
+                return 0;
+            }
+            
+            return result;
         } catch (error) {
-            return `Error: ${error.message}`;
+            console.error("Error evaluating expression '" + expression + "': " + error.message);
+            return 0; // Return 0 instead of error string to prevent NaN propagation
         }
     }
 

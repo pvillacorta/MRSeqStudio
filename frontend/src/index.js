@@ -53,6 +53,31 @@ const resliceActor = vtkImageSlice.newInstance()
 const representation = vtkImplicitPlaneRepresentation.newInstance();
 const state = vtkImplicitPlaneRepresentation.generateState();
 
+function getViewerMode(){
+  return localStorage.getItem('viewerMode') || 'slices'
+}
+
+function setViewerMode(mode){
+  localStorage.setItem('viewerMode', mode)
+  const vtkDiv = document.getElementById("VTKjs")
+  const iframe = document.getElementById("phantomViewer")
+  if(mode === 'slices'){
+    vtkDiv.style.display = 'block'
+    iframe.style.visibility = 'hidden'
+  }else{
+    vtkDiv.style.display = 'none'
+    iframe.style.visibility = 'visible'
+  }
+}
+
+function getMapMode(){
+  return localStorage.getItem('mapMode') || 'T1'
+}
+
+function setMapMode(mode){
+  localStorage.setItem('mapMode', mode)
+}
+
 async function setNormalPlane(gx, gy, gz, deltaf, gamma){
   planeNormal = [gx, gy, gz]
 
@@ -80,31 +105,82 @@ async function setNormalPlane(gx, gy, gz, deltaf, gamma){
   addSlicePlane()
   renderWindow3d.render()
 }
+
 window.setNormalPlane = setNormalPlane
 
 async function displayVolume(filename){
-  niftiFile = `${filename}/T1.nii.gz`
-  niftiUrl  = `../public/nifti_phantoms/${niftiFile}`
+  // Store current phantom for map changes
+  window.currentPhantom = filename
+  
+  const loading = document.getElementById("loading-viewer");
+  const iframe = document.getElementById("phantomViewer");
+  const vtkDiv = document.getElementById("VTKjs");
+  const currentMode = getViewerMode();
+  const currentMap = getMapMode();
 
-  document.getElementById("VTKjs").style.display = "none";
-  document.getElementById("loading-vtk").style.display = "block";
+  // Show loader, hide both views while loading
+  loading.style.display = "block";
+  vtkDiv.style.display = 'none';
+  iframe.style.visibility = 'hidden';
 
+  const combinedObj = {
+    phantom: filename,
+    map: currentMap,
+    height: iframe.offsetHeight,
+    width: iframe.offsetWidth,
+  };
+
+  const volumePromise = fetch("/plot_phantom", {
+      method: "POST",
+      headers: {
+          "Content-type": "application/json",
+          "Authorization": "Bearer " + localStorage.token,
+      },
+      body: JSON.stringify(combinedObj)
+  })
+  .then(res => {
+      if (res.ok) {
+          return res.text();
+      } else {
+          return res.json().then(json => {
+              throw new Error(json.msg);
+          });
+      }
+  })
+  .then(html => {
+        iframe.srcdoc = html;
+  })
+  .catch(error => {
+      console.log(error)
+  })
+
+  // Slices (VTK) display
+  niftiFile = `${filename}/${currentMap}.nii.gz`
+  niftiUrl  = `../public/${niftiFile}`
+
+  const slicesPromise = (async () => {
+    try{
+      await loadNifti();
+      // Remove previous actors
+      renderer3d.removeActor(resliceActor);
+      representation.getActors().forEach(actor => {
+        renderer3d.removeActor(actor);
+      });
+      // load 3 orthogonal slices
+      addReslicerToRenderer();
+      // Render
+      renderWindow3d.render();
+    }catch(error){
+      console.log(error);
+    }
+  })();
+
+  // Wait for both to try loading, then show selected view
   try{
-    await loadNifti();
-    // Remove previous actors
-    renderer3d.removeActor(resliceActor);
-    representation.getActors().forEach(actor => {
-      renderer3d.removeActor(actor);
-    });
-    // load 3 orthogonal slices
-    addReslicerToRenderer();
-    // Render
-    renderWindow3d.render();
-  }catch(error){
-    console.log(error);
+    await Promise.allSettled([volumePromise, slicesPromise]);
   }finally{
-    document.getElementById("loading-vtk").style.display = "none"; 
-    document.getElementById("VTKjs").style.display = "block";
+    loading.style.display = "none"; 
+    setViewerMode(currentMode);
   }
 }
 window.displayVolume = displayVolume
@@ -120,6 +196,26 @@ async function setup() {
   genericRenderer3d.resize()
   renderer3d = genericRenderer3d.getRenderer()
   renderWindow3d = genericRenderer3d.getRenderWindow()
+
+  const viewerToggle = document.getElementById('viewerToggle')
+  if(viewerToggle){
+    viewerToggle.value = getViewerMode()
+    setViewerMode(viewerToggle.value)
+    viewerToggle.addEventListener('change', (e) => setViewerMode(e.target.value))
+  }
+
+  const mapToggle = document.getElementById('mapToggle')
+  if(mapToggle){
+    mapToggle.value = getMapMode()
+    mapToggle.addEventListener('change', (e) => {
+      setMapMode(e.target.value)
+      // Reload current phantom with new map if one is loaded
+      const currentPhantom = window.currentPhantom
+      if(currentPhantom) {
+        displayVolume(currentPhantom)
+      }
+    })
+  }
 }
 
 async function loadNifti() {

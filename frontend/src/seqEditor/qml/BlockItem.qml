@@ -35,51 +35,102 @@ Item{
         configMenu.durationVisible =    [1,2,4].includes(cod);
         configMenu.linesVisible =       [5,6].includes(cod);
         configMenu.samplesVisible =     [4,5,6].includes(cod);
-        configMenu.adcDelayVisible =    [4].includes(cod);
+        configMenu.adcVisible =         [4].includes(cod);
         configMenu.fovVisible =         [5,6].includes(cod);
         configMenu.rfVisible =          [1,6].includes(cod);
         configMenu.gradientsVisible =   [1,3,4].includes(cod);
         configMenu.tVisible =           [6].includes(cod);
         configMenu.groupVisible =       [0].includes(cod);
 
-        if(configMenu.durationVisible){
-            configMenu.duration =       blockList.get(index).duration
+        // Reset all fields to safe defaults to avoid stale values
+        configMenu.duration = "0";
+        configMenu.lines = "0";
+        configMenu.samples = "0";
+        configMenu.adcDelay = "0";
+        configMenu.adcPhase = "0";
+        configMenu.fov = "0";
+        configMenu.shape = 0;
+        configMenu.b1Module = "0";
+        configMenu.flipAngle = "0";
+        configMenu.deltaf = "0";
+        configMenu.gxDelay = "0";  configMenu.gyDelay = "0";  configMenu.gzDelay = "0";
+        configMenu.gxRise = "0";   configMenu.gyRise = "0";   configMenu.gzRise = "0";
+        configMenu.gxFlatTop = "0";configMenu.gyFlatTop = "0";configMenu.gzFlatTop = "0";
+        configMenu.gxAmplitude = "0"; configMenu.gyAmplitude = "0"; configMenu.gzAmplitude = "0";
+        configMenu.te = "0"; configMenu.tr = "0";
+        configMenu.repetitions = "0"; configMenu.iterator = "";
+
+        var blockData = blockList.get(index);
+
+        if(configMenu.durationVisible && blockData.duration !== undefined){
+            configMenu.duration = blockData.duration;
         }
-        if(configMenu.linesVisible){
-            configMenu.lines =       blockList.get(index).lines
+        if(configMenu.linesVisible && blockData.lines !== undefined){
+            configMenu.lines = blockData.lines;
         }
-        if(configMenu.samplesVisible){
-            configMenu.samples =       blockList.get(index).samples
+        if(configMenu.samplesVisible && blockData.samples !== undefined){
+            configMenu.samples = blockData.samples;
         }
-        if(configMenu.adcDelayVisible){
-            configMenu.adcDelay =      blockList.get(index).adcDelay
+        if(configMenu.adcVisible){
+            if(blockData.adcDelay !== undefined){ configMenu.adcDelay = blockData.adcDelay; }
+            if(blockData.adcPhase !== undefined){ configMenu.adcPhase = blockData.adcPhase; }
         }
-        if(configMenu.fovVisible){
-            configMenu.fov =       blockList.get(index).fov
+        if(configMenu.fovVisible && blockData.fov !== undefined){
+            configMenu.fov = blockData.fov;
         }
-        if (configMenu.rfVisible){
-            configMenu.select =     blockList.get(index).rf.get(0).select
-            configMenu.shape =      blockList.get(index).rf.get(0).shape
-            configMenu.b1Module =   blockList.get(index).rf.get(0).b1Module
-            configMenu.flipAngle =  blockList.get(index).rf.get(0).flipAngle
-            configMenu.deltaf =     blockList.get(index).rf.get(0).deltaf
+        if (configMenu.rfVisible && blockData.rf && blockData.rf.count > 0){
+            var rf0 = blockData.rf.get(0);
+            if(rf0.shape !== undefined){ configMenu.shape = rf0.shape; }
+            if(rf0.b1Module !== undefined){ configMenu.b1Module = rf0.b1Module; }
+            if(rf0.flipAngle !== undefined){ configMenu.flipAngle = rf0.flipAngle; }
+            if(rf0.deltaf !== undefined){ configMenu.deltaf = rf0.deltaf; }
+
+            // Use stored select if present; otherwise infer
+            if(rf0.select !== undefined){
+                configMenu.select = rf0.select;
+            } else {
+                // Infer select based on available RF fields when select is not persisted in JSON
+                // 0: flipAngle & duration; 1: flipAngle & amplitude; 2: duration & amplitude
+                var hasFlip = rf0.flipAngle !== undefined;
+                var hasAmp = rf0.b1Module !== undefined;
+                var hasDuration = (blockData.duration !== undefined);
+                var inferredSelect = 0;
+                if(hasFlip && hasAmp){ inferredSelect = 1; }
+                else if(!hasFlip && hasAmp){ inferredSelect = 2; }
+                else if(hasFlip && !hasAmp){ inferredSelect = 0; }
+                else { inferredSelect = 0; }
+                configMenu.select = inferredSelect;
+            }
         }
-        if (configMenu.tVisible){
-            configMenu.te =         blockList.get(index).t.get(0).te
-            configMenu.tr =         blockList.get(index).t.get(0).tr
+        if (configMenu.tVisible && blockData.t && blockData.t.count > 0){
+            var t0 = blockData.t.get(0);
+            if(t0.te !== undefined){ configMenu.te = t0.te; }
+            if(t0.tr !== undefined){ configMenu.tr = t0.tr; }
         }
         if (configMenu.groupVisible){
-            configMenu.repetitions = blockList.get(index).repetitions
-            configMenu.iterator   =  blockList.get(index).iterator
+            if(blockData.repetitions !== undefined){ configMenu.repetitions = blockData.repetitions; }
+            if(blockData.iterator !== undefined){ configMenu.iterator = blockData.iterator; }
         }
-        if (configMenu.gradientsVisible){
-            var gradients = blockList.get(index).gradients
+        if (configMenu.gradientsVisible && blockData.gradients){
+            var gradients = blockData.gradients;
             for (var i=0; i<gradients.count; i++){
                 var grad = gradients.get(i);
-                eval('configMenu.g' + grad.axis + 'Delay = grad.delay');
-                eval('configMenu.g' + grad.axis + 'Rise = grad.rise');
-                eval('configMenu.g' + grad.axis + 'FlatTop = grad.flatTop');
-                eval('configMenu.g' + grad.axis + 'Amplitude = grad.amplitude');
+                if(grad.axis === 'x'){
+                    if(grad.delay !== undefined){ configMenu.gxDelay = grad.delay; }
+                    if(grad.rise !== undefined){ configMenu.gxRise = grad.rise; }
+                    if(grad.flatTop !== undefined){ configMenu.gxFlatTop = grad.flatTop; }
+                    if(grad.amplitude !== undefined){ configMenu.gxAmplitude = grad.amplitude; }
+                } else if(grad.axis === 'y'){
+                    if(grad.delay !== undefined){ configMenu.gyDelay = grad.delay; }
+                    if(grad.rise !== undefined){ configMenu.gyRise = grad.rise; }
+                    if(grad.flatTop !== undefined){ configMenu.gyFlatTop = grad.flatTop; }
+                    if(grad.amplitude !== undefined){ configMenu.gyAmplitude = grad.amplitude; }
+                } else if(grad.axis === 'z'){
+                    if(grad.delay !== undefined){ configMenu.gzDelay = grad.delay; }
+                    if(grad.rise !== undefined){ configMenu.gzRise = grad.rise; }
+                    if(grad.flatTop !== undefined){ configMenu.gzFlatTop = grad.flatTop; }
+                    if(grad.amplitude !== undefined){ configMenu.gzAmplitude = grad.amplitude; }
+                }
             }
         }
     }

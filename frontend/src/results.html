@@ -1,22 +1,42 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mis Resultados - MRSeqStudio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Results - MRSeqStudio</title>
     <link rel="stylesheet" href="results.css">
 </head>
 <body>
     <div class="container">
-        <h1>Mis Resultados</h1>
-        <div id="resultsPanel">
-            <p>Cargando resultados...</p>
+        <h1>My Results</h1>
+        
+        <div id="resultsStats" class="result-stats" style="display: none;">
+            <div class="stat-item">
+                <div class="stat-number" id="totalResults">0</div>
+                <div class="stat-label">Total Results</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalSize">0 MB</div>
+                <div class="stat-label">Total Size</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="lastResult">-</div>
+                <div class="stat-label">Last Created</div>
+            </div>
         </div>
+
+        <div id="resultsPanel">
+            <div class="loading">Loading results...</div>
+        </div>
+        
         <div id="msg" class="msg"></div>
+        
         <div class="actions">
-            <a href="/app" class="btn">Volver a la App</a>
-            <a href="/logout" class="btn">Cerrar Sesión</a>
+            <a href="/app" class="btn btn-success">← Back to App</a>
+            <a href="/logout" class="btn btn-danger">Logout</a>
         </div>
     </div>
     <script src="results.js"></script>
 </body>
 </html>
+

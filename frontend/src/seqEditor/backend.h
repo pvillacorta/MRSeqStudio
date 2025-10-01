@@ -51,7 +51,7 @@ public slots:
     void plot3D(float gx, float gy, float gz, float deltaf, float gamma);
     void displayPhantom(QString filename);
 
-    void simulate(QString phantom, QString qmlSeq, QString qmlScan);
+    void simulate(QString qmlSeq, QString qmlScan);
 };
 
 #endif // BACKEND_H

@@ -36,21 +36,19 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         })
-        .then(res => {
-          if (res.status == 200) {
-            res.json().then(json => {
-              localStorage.username = json.username;
-              localStorage.token = json.token;
-              // fetch('/', {
-              //   method: 'GET',
-              //   headers: {'Authorization': 'Bearer ' + localStorage.token}
-              // })
-            })
-            setTimeout(() => {
-              location.href = "/app";
-            }, 0);
+        .then(async res => {
+          if (res.status === 200) {
+            const json = await res.json();
+            localStorage.username = json.username;
+            localStorage.token = json.token;
+
+            // Espera a que se guarde todo y luego redirige
+            location.href = "/app";
+          } else {
+            console.error("Login failed", res.status);
           }
-        });
+        })
+        .catch(err => console.error("Fetch error:", err));
     });
   </script>
 </body>

@@ -69,13 +69,7 @@ html, body {
     width: 0%;
     height: 30px;
     background-color: #1d9bf0;
-}
-
-#simResult {
-    visibility: hidden; 
-    height: 98%; 
-    width:98%;
-    margin-top: -4%;
+    transition: width 0.3s ease-in-out;
 }
 
 .error-msg{
@@ -86,6 +80,35 @@ html, body {
     color: rgb(255, 99, 99);
 }
 
+/* Toggle */
+.toggle{
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 20;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Reconstruct Button */
+#reconstructButton{
+    padding: 5px 10px;
+    background-color: #1d9bf0;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(32,33,34,0.10);
+    transition: background 0.2s;
+}
+
+#reconstructButton:hover {
+    background-color: #046642;
+}
+
+/* User menu */
 #user-menu #user-icon:hover{
     background: #d8e0e8;
     border-radius: 8px;
@@ -153,13 +176,26 @@ html, body {
     overflow: hidden; 
 }
 
+.iframe {
+    position: absolute;
+    left: 50%;
+    top: 30px;
+    transform: translateX(-50%);
+    width: 98%;
+    height: calc(100% - 30px);
+    margin: 0;
+    box-sizing: border-box;
+    z-index: 2;
+    visibility: hidden;
+}
+
 .content {
     position: absolute;
     left: 50%;
     top: 50%;
-    -webkit-transform: translate(-50%, -50%);
-    transform: translate(-50%, -45%);
-  }
+    -webkit-transform: translate(-50%, calc(-50% + 15px));
+    transform: translate(-50%, calc(-50% + 15px));
+}
 
 .title {
     position: absolute;
@@ -241,4 +277,18 @@ html, body {
         display: none;
     }
 
+}
+
+#logout {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px;
+    width: 80%;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#logout:hover {
+    background: #0056b3;
 }

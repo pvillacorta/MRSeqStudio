@@ -21,9 +21,10 @@ Item {
     property bool samplesVisible
     property alias samples:     samplesInput.text
 
-    // ------- ADC Delay
-    property bool adcDelayVisible
+    // ------- ADC 
+    property bool adcVisible
     property alias adcDelay:    adcDelayInput.text
+    property alias adcPhase:    adcPhaseInput.text
 
     // ------- FOV
     property bool fovVisible
@@ -69,7 +70,8 @@ Item {
         if(durationVisible) {blockList.setProperty(blockID,          "duration",    duration);}
         if(linesVisible)    {blockList.setProperty(blockID,          "lines",       lines);}
         if(samplesVisible)  {blockList.setProperty(blockID,          "samples",     samples);}
-        if(adcDelayVisible) {blockList.setProperty(blockID,          "adcDelay",    adcDelay);}
+        if(adcVisible)      {blockList.setProperty(blockID,          "adcDelay",    adcDelay);
+                             blockList.setProperty(blockID,          "adcPhase",    adcPhase);}
         if(fovVisible)      {blockList.setProperty(blockID,          "fov",         fov);}
         if(rfVisible)       {blockList.get(blockID).rf.set(0,       {"select":      select,
                                                                      "shape":       shape,
@@ -95,7 +97,8 @@ Item {
         duration =      durationVisible ?   blockInfo.duration : "0";
         lines =         linesVisible ?      blockInfo.lines : "0";
         samples =       samplesVisible ?    blockInfo.samples : "0";
-        adcDelay =      adcDelayVisible ?   blockInfo.adcDelay : "0";
+        adcDelay =      adcVisible ?        blockInfo.adcDelay : "0";
+        adcPhase =      adcVisible ?        blockInfo.adcPhase : "0";
         fov =           fovVisible ?        blockInfo.fov : "0";
         shape =         rfVisible ?         blockInfo.rf.get(0).shape : "0";
         b1Module =      rfVisible ?         blockInfo.rf.get(0).b1Module : "0";
@@ -217,23 +220,6 @@ Item {
                 }
             }
 
-            Loader { visible: adcDelayVisible
-                sourceComponent: configPanel
-                width:200
-                height: 26
-                GridLayout{ id: adcDelayLayout
-                    uniformCellWidths: true
-                    anchors.fill: parent
-                    anchors.margins:3
-                    columns: 4
-                    rowSpacing: 3
-
-                    MenuLabel { text: "ADC Delay:";  bold: true;  Layout.columnSpan: 2}
-                    TextInputItem{ idNumber: blockID;  id: adcDelayInput; Layout.alignment: Qt.AlignRight}
-                    MenuLabel { text: "s" }
-                }
-            }
-
             Loader { visible: durationVisible
                 sourceComponent: configPanel
                 width:200
@@ -250,6 +236,25 @@ Item {
                     MenuLabel { text: "Duration:";  bold: true; Layout.columnSpan: 2}
                     TextInputItem{ idNumber: blockID;  id:durationInput; Layout.alignment: Qt.AlignRight}
                     MenuLabel { text: "s"}
+                }
+            }
+
+            Loader { visible: adcVisible
+                sourceComponent: configPanel
+                height: 26
+                GridLayout{ id: adcDelayLayout
+                    uniformCellWidths: true
+                    anchors.fill: parent
+                    anchors.margins:3
+                    columns: 8
+                    rowSpacing: 3
+
+                    MenuLabel { text: "ADC Delay:";  bold: true;  Layout.columnSpan: 2}
+                    TextInputItem{ idNumber: blockID;  id: adcDelayInput; Layout.alignment: Qt.AlignRight}
+                    MenuLabel { text: "s" }
+                    MenuLabel { text: "ADC Phase:";  bold: true;  Layout.columnSpan: 2}
+                    TextInputItem{ idNumber: blockID;  id: adcPhaseInput; Layout.alignment: Qt.AlignRight}
+                    MenuLabel { text: "rad" }
                 }
             }
 

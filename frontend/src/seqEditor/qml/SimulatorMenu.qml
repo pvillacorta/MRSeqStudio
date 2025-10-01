@@ -8,7 +8,7 @@ Rectangle{
     color: "#492859"
 
     function applyPhantomChanges(){
-        const fileNames = ["brain_phantom2D", "brain_phantom3D", "pelvis_phantom2D"]
+        const fileNames = ["brain2D", "brain3D", "pelvis2D", "flow_cylinder", "aorta3D"]
         backend.displayPhantom(fileNames[phantomInput.currentIndex])
     }
 
@@ -49,8 +49,8 @@ Rectangle{
         ComboBoxItem{
             id: phantomInput;
             idNumber: -3;
-            model: [ "Brain 2D", "Brain 3D", "Pelvis 2D" ]
-        } 
+            model: [ "Brain 2D", "Brain 3D", "Pelvis 2D", "Flow Cylinder", "Aorta 3D" ]
+        }
     }
 
     Button{
@@ -62,9 +62,47 @@ Rectangle{
         height: 25
         width: 100
         font.pointSize: window.fontSize
+        font.bold: true
+
+        background: Rectangle {
+            id: simulateButtonBackground
+            color: simulateButton.hovered ? "#046642" : "#1d9bf0"
+            radius: 6
+        }
+
+        contentItem: Text {
+            text: simulateButton.text
+            font: simulateButton.font
+            color: "white"
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
 
         onClicked: {
-            simulate(phantomInput.currentText)
+            simulate()
         }
+
+        states: [
+                State{
+                    when: !simulateButton.hovered
+                    PropertyChanges {
+                        target: simulateButtonBackground
+                        color: "#1d9bf0"
+                    }
+                },
+                State{
+                    when: simulateButton.hovered
+                    PropertyChanges {
+                        target: simulateButtonBackground
+                        color: "#046642"
+                    }
+                }
+            ] // states
+
+        transitions: [
+            Transition{
+                PropertyAnimation {property: "color"; duration: 200}
+            }
+        ]
     }
 }

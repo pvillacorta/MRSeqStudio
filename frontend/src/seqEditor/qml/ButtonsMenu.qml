@@ -133,6 +133,7 @@ Item{
                             var lines = "64";
                             var samples = "64";
                             var adcDelay = "0";
+                            var adcPhase = "0";
                             var fov = "0.2";
                             var select = 0;
                             var shape = 0;
@@ -155,7 +156,7 @@ Item{
                                 var durationActive =    [1,2,4].includes(code);
                                 var linesActive =       [5,6].includes(code);
                                 var samplesActive =     [4,5,6].includes(code);
-                                var adcDelayActive =    [4].includes(code);
+                                var adcActive =         [4].includes(code);
                                 var fovActive =         [5,6].includes(code);
                                 var rfActive =          [1,6].includes(code);
                                 var gradientsActive =   [1,3,4].includes(code);
@@ -176,7 +177,8 @@ Item{
                                 if(durationActive)  {blockList.setProperty(blockList.count-1,           "duration", duration);}
                                 if(linesActive)     {blockList.setProperty(blockList.count-1,           "lines", lines);}
                                 if(samplesActive)   {blockList.setProperty(blockList.count-1,           "samples", samples);}
-                                if(adcDelayActive)  {blockList.setProperty(blockList.count-1,           "adcDelay", adcDelay);}
+                                if(adcActive)       {blockList.setProperty(blockList.count-1,           "adcDelay", adcDelay);
+                                                     blockList.setProperty(blockList.count-1,           "adcPhase", adcPhase);}
                                 if(fovActive)       {blockList.setProperty(blockList.count-1,           "fov", fov);}
                                 if(rfActive)        {blockList.get(blockList.count-1).rf.append(       {"select":select,
                                                                                                         "shape":shape,
@@ -221,7 +223,7 @@ Item{
                                     durationActive =    [1,2,3,4].includes(cod);
                                     linesActive =       [5,6].includes(cod);
                                     samplesActive =     [4,5,6].includes(cod);
-                                    adcDelayActive =    [4].includes(cod);
+                                    adcActive =    [4].includes(cod);
                                     fovActive =         [5,6].includes(cod);
                                     rfActive =          [1,6].includes(cod);
                                     gradientsActive =   [1,3,4].includes(cod);
@@ -241,7 +243,7 @@ Item{
                                     if(durationActive)  {blockList.setProperty(blockList.count-1,           "duration",     groupList.get(index).duration);}
                                     if(linesActive)     {blockList.setProperty(blockList.count-1,           "lines",        groupList.get(index).lines);}
                                     if(samplesActive)   {blockList.setProperty(blockList.count-1,           "samples",      groupList.get(index).samples);}
-                                    if(adcDelayActive)  {blockList.setProperty(blockList.count-1,           "adcDelay",     groupList.get(index).adcDelay);}
+                                    if(adcActive)  {blockList.setProperty(blockList.count-1,           "adcDelay",     groupList.get(index).adcDelay);}
                                     if(fovActive)       {blockList.setProperty(blockList.count-1,           "fov",          groupList.get(index).fov);}
                                     if(rfActive)        {blockList.get(blockList.count-1).rf.append(       {"select":       groupList.get(index).rf.get(0).select,
                                                                                                             "shape":        groupList.get(index).rf.get(0).shape,
