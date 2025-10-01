@@ -13,3 +13,6 @@ jwkpub.json
 *.dat
 results
 sequences
+*.nii.gz
+*.mat
+*.phantom
