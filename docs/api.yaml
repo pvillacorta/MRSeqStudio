@@ -220,7 +220,7 @@ paths:
         it returns 100
 
         - If the reconstruction has finished, it returns 101
-  /plot:
+  /plot_sequence:
     post:
       summary: Plot a sequence
       requestBody:
@@ -311,7 +311,7 @@ paths:
         '500':
           description: Internal server error
       tags:
-        - plot
+        - plot_sequence
       description: Plot a sequence
 info:
   title: MRSeqStudio API

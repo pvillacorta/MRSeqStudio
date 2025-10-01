@@ -32,37 +32,31 @@ using StructTypes
 end
 
 dynamic_files_path = string(@__DIR__, "/../frontend/dist")
-public_files_path  = string(@__DIR__, "/../public")
+phantom_files_path = string(@__DIR__, "/phantoms")
 
 dynamicfiles(dynamic_files_path, "/") 
-staticfiles(public_files_path, "/public")
+staticfiles(phantom_files_path, "/public")
 
-const PUBLIC_URLS = ["/login", "/login.js", "/login.js.map", 
-                     "/register", "/", "/admin"]
-const PRIVATE_URLS = ["/simulate", "/plot", "/plot_sequence", "/plot_phantom"]
+const PUBLIC_URLS = ["/login", "/login.js", "/login.js.map", "/register"]
+const PRIVATE_URLS = ["/simulate", "/recon", "/plot_sequence", "/plot_phantom"]
+
+const AUTH_FILE  = "auth.txt"
+const USERS_FILE = "users.txt"
 
 global simID = 1
-global SIM_PROGRESSES  = Dict{Int, Int}()
+# Dictionaries whose key is the simulation ID
+global SIM_METADATA     = Dict{Int, Any}()
+global SIM_PROGRESSES   = Dict{Int, Int}()
 global RECON_PROGRESSES = Dict{Int, Int}()
-global STATUS_FILES    = Dict{Int, String}()
-
-# Additional state to support new plotting features
+global STATUS_FILES     = Dict{Int, String}()
+# Dictionaries whose key is the username
 global RAW_RESULTS      = Dict{String, Any}()
 global RECON_RESULTS    = Dict{String, Any}()
 global PHANTOMS         = Dict{String, Phantom}()   
 global SEQUENCES        = Dict{String, Sequence}()   
 global SCANNERS         = Dict{String, Scanner}()
 global ROT_MATRICES     = Dict{String, Matrix}() 
-
-global SIM_RESULTS     = Dict{Int, Any}()
-global SIM_METADATA    = Dict{Int, Any}()
 global ACTIVE_SESSIONS  = Dict{String, Int}()
-# ---------------------------- GLOBAL VARIABLES --------------------------------
-# Estas no harán falta una vez esté la tabla simulación-proceso implementada
-
-# global statusFile = ""
-# global simProgress = -1
-# global result = nothing
 
 # ------------------------------ FUNCTIONS ------------------------------------
 
@@ -78,10 +72,8 @@ global ACTIVE_SESSIONS  = Dict{String, Int}()
    
    """Updates simulation progress and writes it in a file."""
    function KomaMRICore.update_blink_window_progress!(w::String, block, Nblocks)
-      io = open(w,"w") # "w" mode overwrites last status value, even if it was not read yet
       progress = trunc(Int, block / Nblocks * 100)
-      write(io,progress)
-      close(io)
+      update_progress!(w, progress)
       return nothing
    end
 
@@ -129,20 +121,65 @@ function AuthMiddleware(handler)
       
       elseif (path in PUBLIC_URLS) 
       # Public resource. This does not requires cookie
-         return check_jwt(jwt1, ipaddr, 1) ? HTTP.Response(303, ["Location" => "/"]) : handler(req)
+         return check_jwt(jwt1, ipaddr, 1) ? HTTP.Response(303, ["Location" => "/app"]) : handler(req)
 
       elseif any(base -> startswith(path, base), PRIVATE_URLS) 
       # Private resource. This requires both the cookie and the Authorization header
          return (check_jwt(jwt1, ipaddr, 1) && check_jwt(jwt2, ipaddr, 2)) ? handler(req) : HTTP.Response(303, ["Location" => "/login"])
 
       else 
-      # Private dashboard. This only requires the cookie
+      # Private dashboard. This only requires the cookie.
          return check_jwt(jwt1, ipaddr, 1) ? handler(req) : HTTP.Response(303, ["Location" => "/login"])
       end
    end
 end
 
 # ---------------------------- API METHODS ---------------------------------
+@swagger """
+/login:
+   get:
+      tags:
+      - users
+      summary: Get the login page
+      description: Returns the login HTML page.
+      responses:
+         '200':
+            description: Login HTML page
+            content:
+              text/html:
+                schema:
+                  format: html
+         '404':
+            description: Not found
+         '500':
+            description: Internal server error
+   post:
+      tags:
+      - users
+      summary: Authenticate user and start session
+      description: Authenticates a user and starts a session, returning a JWT token in a cookie.
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  properties:
+                     username:
+                        type: string
+                     password:
+                        type: string
+                  required:
+                     - username
+                     - password
+      responses:
+         '200':
+            description: Login successful, JWT token set in cookie
+         '401':
+            description: Invalid credentials
+         '500':
+            description: Internal server error
+"""
 @get "/login" function(req::HTTP.Request) 
    return render_html(dynamic_files_path * "/login.html")
 end
@@ -153,6 +190,54 @@ end
    return authenticate(input_data["username"], input_data["password"], ipaddr)
 end
 
+@swagger """
+/register:
+   get:
+      tags:
+      - users
+      summary: Get the registration page
+      description: Returns the registration HTML page.
+      responses:
+         '200':
+            description: Registration HTML page
+            content:
+              text/html:
+                schema:
+                  format: html
+         '404':
+            description: Not found
+         '500':
+            description: Internal server error
+   post:
+      tags:
+      - users
+      summary: Register a new user
+      description: Registers a new user with username, password, and email.
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  properties:
+                     username:
+                        type: string
+                     password:
+                        type: string
+                     email:
+                        type: string
+                  required:
+                     - username
+                     - password
+                     - email
+      responses:
+         '201':
+            description: User created successfully
+         '400':
+            description: Invalid input or user already exists
+         '500':
+            description: Internal server error
+"""
 @get "/register" function(req::HTTP.Request) 
    return render_html(dynamic_files_path * "/register.html")
 end
@@ -162,6 +247,26 @@ end
    return create_user(input_data["username"], input_data["password"], input_data["email"])
 end
 
+@swagger """
+/logout:
+   get:
+      tags:
+      - users
+      summary: Logout user
+      description: Logs out the current user and invalidates the session.
+      responses:
+         '200':
+            description: Logout successful, JWT cookie cleared
+            headers:
+               Set-Cookie:
+                  description: JWT token cookie cleared
+                  schema:
+                     type: string
+         '401':
+            description: Not authenticated
+         '500':
+            description: Internal server error
+"""
 @get "/logout" function(req::HTTP.Request) 
    jwt1 = get_jwt_from_cookie(HTTP.header(req, "Cookie"))
    username = claims(jwt1)["username"]
@@ -174,38 +279,10 @@ end
 end
 
 @swagger """
-/:
-   get:
-      tags:
-      - web
-      summary: Redirect to the app
-      description: Redirect to the app
-      responses:
-         '301':
-            description: Redirect to /app
-            headers:
-              Location:
-                description: URL with the app
-                schema:
-                  type: string
-                  format: uri
-         default:
-            description: Always returns a 301 redirect to /app
-            headers:
-              Location:
-                schema:
-                  type: string
-                  example: "/app"
-"""
-@get "/" function(req::HTTP.Request)
-   return HTTP.Response(301, ["Location" => "/app"])
-end
-
-@swagger """
 /app:
    get:
       tags:
-      - web
+      - gui
       summary: Get the app and the web content
       description: Get the app and the web content
       responses:
@@ -239,14 +316,11 @@ end
                schema:
                   type: object
                   properties:
-                     phantom:
-                        type: string
                      sequence:
                         type: object
                      scanner:
                         type: object
                example:
-                  phantom: "Brain 2D"
                   sequence: {
                      "blocks": [
                         {
@@ -288,6 +362,7 @@ end
                         },
                         {
                            "adcDelay": 0,
+                           "adcPhase": 0,
                            "children": [],
                            "cod": 4,
                            "duration": 1e-3,
@@ -345,7 +420,6 @@ end
             description: Internal server error
 """
 @post "/simulate" function(req::HTTP.Request)
-    println("[Simulate/")
    # Obtener información del usuario
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
@@ -390,25 +464,11 @@ end
    end
    ################ fin de movidas
 
-
    if !haskey(ACTIVE_SESSIONS, uname) # Check if the user has already an active session
       assign_process(uname) # We assign a new julia process to the user
    end
    # Simulation  (asynchronous. It should not block the HTTP 202 Response)
    RAW_RESULTS[uname]                    = @spawnat pid sim(PHANTOMS[uname], SEQUENCES[uname], SCANNERS[uname], STATUS_FILES[simID], gpu_active)
-
-   # while 1==1
-   #    io = open(statusFile,"r")
-   #    if (!eof(io))
-   #       global simProgress = read(io,Int32)
-   #       print("leido\n")
-   #    end
-   #    close(io)
-   #    print("Progreso: ", simProgress, '\n')
-   #    sleep(0.2)
-   # end
-
-   # TODO: Update simulation-process correspondence table
 
    headers = ["Location" => string("/simulate/",simID)]
    global simID += 1
@@ -464,7 +524,6 @@ end
             description: Internal server error
 """
 @get "/simulate/{simID}" function(req::HTTP.Request, simID, width::Int, height::Int)
-    println("[Simulate/simID]")
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
    _simID = parse(Int, simID)
@@ -505,8 +564,7 @@ end
       ###################### MOVIDAS DE GESTION ##################
       return HTTP.Response(200,body=take!(html_buffer))
    elseif SIM_PROGRESSES[_simID] == -2 # Simulation failed
-      error_msg = fetch(SIM_RESULTS[_simID])
-      return HTTP.Response(500,body=JSON3.write(error_msg))
+      return HTTP.Response(500,body=JSON3.write("Simulation failed"))
    end
 end
 
@@ -611,6 +669,7 @@ end
    return HTTP.Response(202,headers)
 end
 
+
 @get "/recon/{simID}" function(req::HTTP.Request, simID, width::Int, height::Int)
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
@@ -658,127 +717,9 @@ end
    return HTTP.Response(200,body=JSON3.write(RECON_PROGRESSES[parse(Int, simID)]))
 end
 
-# PLOT SEQUENCE
+## PLOT SEQUENCE
 @swagger """
 /plot_sequence:
-   post:
-      tags:
-      - plot
-      summary: Plot a sequence
-      description: Plot a sequence and k-space for the user session
-      responses: 
-         '200':
-            description: Plot of the sequence
-            content:
-              text/html:
-                schema:
-                  format: html
-         '400':
-            description: Invalid input
-         '500':
-            description: Internal server error
-"""
-@post "/plot_sequence" function(req::HTTP.Request)
-   try
-      scanner_data = json(req)["scanner"]
-      seq_data     = json(req)["sequence"]
-      width  = json(req)["width"]  - 15
-      height = json(req)["height"] - 20
-      jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
-      uname = claims(jwt2)["username"]
-
-      if !haskey(ACTIVE_SESSIONS, uname)
-         assign_process(uname)
-      end
-      pid = ACTIVE_SESSIONS[uname]
-
-      SCANNERS[uname]                       = json_to_scanner(scanner_data)
-      seq_obj, rot = json_to_sequence(seq_data, SCANNERS[uname])
-      SEQUENCES[uname]        = seq_obj
-      ROT_MATRICES[uname]     = rot
-
-      p_seq    = remotecall_fetch(plot_seq, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height, slider=height>275)
-      p_kspace = remotecall_fetch(plot_kspace, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height)
-
-      seq_buffer = IOBuffer()
-      kspace_buffer = IOBuffer()
-      KomaMRIPlots.PlotlyBase.to_html(seq_buffer, p_seq.plot)
-      KomaMRIPlots.PlotlyBase.to_html(kspace_buffer, p_kspace.plot)
-
-      seq_html = String(take!(seq_buffer))
-      kspace_html = String(take!(kspace_buffer))
-
-      result = Dict(
-          "seq_html" => seq_html,
-          "kspace_html" => kspace_html
-      )
-
-      return HTTP.Response(200,body=JSON3.write(result))
-   catch e
-      return HTTP.Response(500,body=JSON3.write(string(e)))
-   end
-end
-
-# SELECT AND PLOT PHANTOM
-@swagger """
-/plot_phantom:
-   post:
-      tags:
-      - plot
-      summary: Initialize and plot the selected phantom for the user
-      responses: 
-         '200':
-            description: Interactive HTML plot of the selected phantom
-            content:
-              text/html:
-                schema:
-                  format: html
-         '400':
-            description: Invalid input
-         '401':
-            description: Unauthorized
-         '500':
-            description: Internal server error
-"""
-@post "/plot_phantom" function(req::HTTP.Request)
-   try
-      input_data = json(req)
-      phantom_string = input_data["phantom"]
-      map_str = input_data["map"]
-      map = map_str == "PD" ? :ρ  : 
-            map_str == "dw" ? :Δw : 
-            map_str == "T1" ? :T1 : 
-            map_str == "T2" ? :T2 : map_str
-      jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
-      uname = claims(jwt2)["username"]
-
-      if !haskey(ACTIVE_SESSIONS, uname) # Check if the user has already an active session
-         assign_process(uname) # Assign a new Julia process to the user
-      end
-      pid = ACTIVE_SESSIONS[uname]
-
-      phantom_path = "phantoms/$phantom_string/$phantom_string.phantom"
-      obj = read_phantom(phantom_path)
-      obj.Δw .= 0
-      PHANTOMS[uname] = obj
-
-      width  = json(req)["width"]  - 15
-      height = json(req)["height"] - 15
-      time_samples = obj.name == "Aorta"         ? 100 : 
-                     obj.name == "Flow Cylinder" ? 50  : 2;
-      ss           = obj.name == "Aorta"         ? 100 : 
-                     obj.name == "Flow Cylinder" ? 100 : 1;
-
-      p = @spawnat pid plot_phantom_map(PHANTOMS[uname][1:ss:end], map; darkmode=true, width=width, height=height, time_samples=time_samples)
-      html_buffer = IOBuffer()
-      KomaMRIPlots.PlotlyBase.to_html(html_buffer, fetch(p).plot)
-      return HTTP.Response(200,body=take!(html_buffer))
-   catch e
-      return HTTP.Response(500,body=JSON3.write(e))
-   end
-end
-@swagger """
-/plot:
    post:
       tags:
       - plot
@@ -850,6 +791,7 @@ end
                         },
                         {
                            "adcDelay": 0,
+                           "adcPhase": 0,
                            "children": [],
                            "cod": 4,
                            "duration": 1e-3,
@@ -897,18 +839,128 @@ end
          '500':
             description: Internal server error
 """
-@post "/plot" function(req::HTTP.Request)
+@post "/plot_sequence" function(req::HTTP.Request)
    try
-      json_data = normalize_keys(json(req))
-      scanner_data = json_data["scanner"]
-      seq_data     = json_data["sequence"]
-      width  = json_data["width"]  - 15
-      height = json_data["height"] - 20
-      sys = json_to_scanner(scanner_data)
-      seq = json_to_sequence(seq_data, sys)
-      p = plot_seq(seq; darkmode=true, width=width, height=height, slider=height>275)
+      scanner_data = json(req)["scanner"]
+      seq_data     = json(req)["sequence"]
+      width  = json(req)["width"]  - 15
+      height = json(req)["height"] - 20
+      jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
+      uname = claims(jwt2)["username"]
+
+      if !haskey(ACTIVE_SESSIONS, uname) # Check if the user has already an active session
+         assign_process(uname) # Assign a new Julia process to the user
+      end
+      pid = ACTIVE_SESSIONS[uname]
+
+      SCANNERS[uname]                       = json_to_scanner(scanner_data)
+      SEQUENCES[uname], ROT_MATRICES[uname] = json_to_sequence(seq_data, SCANNERS[uname])
+
+      p_seq    = remotecall_fetch(plot_seq, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height, slider=height>275)
+      p_kspace = remotecall_fetch(plot_kspace, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height)
+
+      seq_buffer = IOBuffer()
+      kspace_buffer = IOBuffer()
+      KomaMRIPlots.PlotlyBase.to_html(seq_buffer, p_seq.plot)
+      KomaMRIPlots.PlotlyBase.to_html(kspace_buffer, p_kspace.plot)
+
+      seq_html = String(take!(seq_buffer))
+      kspace_html = String(take!(kspace_buffer))
+
+      result = Dict(
+          "seq_html" => seq_html,
+          "kspace_html" => kspace_html
+      )
+
+      return HTTP.Response(200,body=JSON3.write(result))
+   catch e
+      println(e)
+      return HTTP.Response(500,body=JSON3.write(string(e)))
+   end
+end
+
+## SELECT AND PLOT PHANTOM
+@swagger """
+/plot_phantom:
+   post:
+      tags:
+      - plot
+      summary: Initialize and plot the selected phantom for the user
+      description: >
+         This endpoint is called from the frontend every time the user changes the "Phantom" field in the interface.
+         It initializes the user's phantom in the backend according to the selected value and returns an HTML response with an interactive plot of the selected phantom.
+         The plot corresponds to the selected map (e.g., PD, T1, T2, Δw) and is sized according to the provided width and height.
+         The user must be authenticated (requires Authorization header with JWT).
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  properties:
+                     phantom:
+                        type: string
+                        description: Name of the phantom to initialize (e.g., "brain2D", "aorta3D", etc.)
+                     map:
+                        type: string
+                        description: Map to plot ("PD", "T1", "T2", "dw", etc.)
+                     width:
+                        type: integer
+                        description: Plot width in pixels
+                     height:
+                        type: integer
+                        description: Plot height in pixels
+               example:
+                  phantom: "brain2D"
+                  map: "PD"
+                  width: 800
+                  height: 600
+      responses: 
+         '200':
+            description: Interactive HTML plot of the selected phantom
+            content:
+              text/html:
+                schema:
+                  format: html
+         '400':
+            description: Invalid input
+         '401':
+            description: Unauthorized (missing or invalid JWT)
+         '500':
+            description: Internal server error
+"""
+@post "/plot_phantom" function(req::HTTP.Request)
+   try
+      input_data = json(req)
+      phantom_string = input_data["phantom"]
+      map_str = input_data["map"]
+      map = map_str == "PD" ? :ρ  : 
+            map_str == "dw" ? :Δw : 
+            map_str == "T1" ? :T1 : 
+            map_str == "T2" ? :T2 : map_str
+      jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
+      uname = claims(jwt2)["username"]
+
+      if !haskey(ACTIVE_SESSIONS, uname) # Check if the user has already an active session
+         assign_process(uname) # Assign a new Julia process to the user
+      end
+      pid = ACTIVE_SESSIONS[uname]
+
+      phantom_path = "phantoms/$phantom_string/$phantom_string.phantom"
+      obj = read_phantom(phantom_path)
+      obj.Δw .= 0
+      PHANTOMS[uname] = obj
+
+      width  = json(req)["width"]  - 15
+      height = json(req)["height"] - 15
+      time_samples = obj.name == "Aorta"         ? 100 : 
+                     obj.name == "Flow Cylinder" ? 50  : 2;
+      ss           = obj.name == "Aorta"         ? 100 : 
+                     obj.name == "Flow Cylinder" ? 100 : 1;
+
+      p = @spawnat pid plot_phantom_map(PHANTOMS[uname][1:ss:end], map; darkmode=true, width=width, height=height, time_samples=time_samples)
       html_buffer = IOBuffer()
-      KomaMRIPlots.PlotlyBase.to_html(html_buffer, p.plot)
+      KomaMRIPlots.PlotlyBase.to_html(html_buffer, fetch(p).plot)
       return HTTP.Response(200,body=take!(html_buffer))
    catch e
       return HTTP.Response(500,body=JSON3.write(e))
@@ -1240,9 +1292,3 @@ swagger_document = build(openApi)
 setschema(swagger_document)
 
 serve(host="0.0.0.0",port=8000, middleware=[AuthMiddleware])
-
-
-
-
-
-

@@ -76,14 +76,14 @@
         {
             "children": [],
             "cod": 5,
-            "fov": "0.23",
-            "lines": "100",
+            "fov": "FOV",
+            "lines": "N_matrix",
             "name": "",
             "ngroups": 0,
-            "samples": "100"
+            "samples": "N_matrix"
         }
     ],
-    "description": "EPI single-shot \n100 x 100          FOV 23 cm      \nFlip angle 20º    TE 30 ms\n",
+    "description": "EPI single-shot  \n64 x 64              FOV 20 cm      \nFlip angle 20º    TE 30 ms\n",
     "variables": [
         {
             "expression": "42.5774688e6",
@@ -96,6 +96,18 @@
             "name": "A",
             "readonly": false,
             "value": 0.01
+        },
+        {
+            "expression": "64",
+            "name": "N_matrix",
+            "readonly": false,
+            "value": 64
+        },
+        {
+            "expression": "0.2",
+            "name": "FOV",
+            "readonly": false,
+            "value": 0.2
         }
     ]
 }

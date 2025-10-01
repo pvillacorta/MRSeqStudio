@@ -22,18 +22,24 @@
                 },
                 {
                     "number": 7
+                },
+                {
+                    "number": 8
+                },
+                {
+                    "number": 9
                 }
             ],
             "cod": 0,
+            "iterator": "i",
             "name": "TR",
             "ngroups": 0,
-            "repetitions": "N",
-            "iterator": "i"
+            "repetitions": "N_matrix"
         },
         {
             "children": [],
             "cod": 1,
-            "duration": "RF_dur",
+            "duration": "RF1_dur",
             "gradients": [
                 {
                     "amplitude": "0",
@@ -53,7 +59,7 @@
                     "amplitude": "G_ss",
                     "axis": "z",
                     "delay": "0",
-                    "flatTop": "RF_dur",
+                    "flatTop": "RF1_dur",
                     "rise": "rise_phase"
                 }
             ],
@@ -79,7 +85,7 @@
                     "rise": "rise_phase"
                 },
                 {
-                    "amplitude": "G_phase/2 - i*G_phase/(N-1)",
+                    "amplitude": "G_phase/2 - i*G_phase/(N_matrix-1)",
                     "axis": "y",
                     "delay": "0",
                     "flatTop": "flat_top_phase",
@@ -99,14 +105,13 @@
         {
             "children": [],
             "cod": 2,
-            "duration": "TE/2 - (RF_dur + flat_top_phase + 4*rise_phase)",
+            "duration": "TE/2 - (RF1_dur/2 + RF2_dur/2 + flat_top_phase + 4*rise_phase + 2*crusher_rise + crusher_flat_top)",
             "name": "",
             "ngroups": 1
         },
         {
             "children": [],
-            "cod": 1,
-            "duration": "RF_dur",
+            "cod": 3,
             "gradients": [
                 {
                     "amplitude": "0",
@@ -123,11 +128,41 @@
                     "rise": "0"
                 },
                 {
-                    "amplitude": "G_ss",
+                    "amplitude": "crusher_amp",
                     "axis": "z",
                     "delay": "0",
-                    "flatTop": "RF_dur",
-                    "rise": "rise_phase"
+                    "flatTop": "crusher_flat_top",
+                    "rise": "crusher_rise"
+                }
+            ],
+            "name": "",
+            "ngroups": 1
+        },
+        {
+            "children": [],
+            "cod": 1,
+            "duration": "RF2_dur",
+            "gradients": [
+                {
+                    "amplitude": "0",
+                    "axis": "x",
+                    "delay": "0",
+                    "flatTop": "0",
+                    "rise": "0"
+                },
+                {
+                    "amplitude": "0",
+                    "axis": "y",
+                    "delay": "0",
+                    "flatTop": "0",
+                    "rise": "0"
+                },
+                {
+                    "amplitude": "0",
+                    "axis": "z",
+                    "delay": "0",
+                    "flatTop": "0",
+                    "rise": "0"
                 }
             ],
             "name": "",
@@ -142,13 +177,43 @@
         },
         {
             "children": [],
+            "cod": 3,
+            "gradients": [
+                {
+                    "amplitude": "0",
+                    "axis": "x",
+                    "delay": "0",
+                    "flatTop": "0",
+                    "rise": "0"
+                },
+                {
+                    "amplitude": "0",
+                    "axis": "y",
+                    "delay": "0",
+                    "flatTop": "0",
+                    "rise": "0"
+                },
+                {
+                    "amplitude": "crusher_amp",
+                    "axis": "z",
+                    "delay": "0",
+                    "flatTop": "crusher_flat_top",
+                    "rise": "crusher_rise"
+                }
+            ],
+            "name": "",
+            "ngroups": 1
+        },
+        {
+            "children": [],
             "cod": 2,
-            "duration": "TE/2 - (RF_dur/2 + rise_phase + ACQ_dur/2 + rise_ro)",
+            "duration": "TE/2 - (RF2_dur/2 + rise_phase + 2*crusher_rise + crusher_flat_top + ACQ_dur/2 + rise_ro)",
             "name": "",
             "ngroups": 1
         },
         {
             "adcDelay": "rise_ro",
+            "adcPhase": "0",
             "children": [],
             "cod": 4,
             "duration": "ACQ_dur",
@@ -177,17 +242,17 @@
             ],
             "name": "",
             "ngroups": 1,
-            "samples": "N"
+            "samples": "N_matrix"
         },
         {
             "children": [],
             "cod": 2,
-            "duration": "TR - (TE + rise_ro + ACQ_dur/2)",
+            "duration": "TR - (TE + RF1_dur/2 + ACQ_dur/2 + rise_phase + rise_ro)",
             "name": "",
             "ngroups": 1
         }
     ],
-    "description": "Spin echo\n\n                            TE (ms)         TR (ms)\nT1-Weighted         10-30           300-800      \nPD-Weighted         10-30           >=2000\nT2-Weighted         70-120         >=2000\n\n",
+    "description": "Spin echo 100x100\n\n                            TE (ms)         TR (ms)\nT1-Weighted         10-30           300-800      \nPD-Weighted         10-30           >=2000\nT2-Weighted         70-120         >=2000\n\n",
     "variables": [
         {
             "expression": "42.5774688e6",
@@ -196,8 +261,14 @@
             "value": 42577468.8
         },
         {
+            "expression": "10e-3",
+            "name": "A",
+            "readonly": false,
+            "value": 0.01
+        },
+        {
             "expression": "100",
-            "name": "N",
+            "name": "N_matrix",
             "readonly": false,
             "value": 100
         },
@@ -208,19 +279,19 @@
             "value": 0.23
         },
         {
-            "expression": "14e-3",
+            "expression": "20e-3",
             "name": "TE",
             "readonly": false,
-            "value": 0.014
+            "value": 0.02
         },
         {
-            "expression": "700e-3",
+            "expression": "400e-3",
             "name": "TR",
             "readonly": false,
-            "value": 0.7
+            "value": 0.4
         },
         {
-            "expression": "(N-1)/FOV",
+            "expression": "(N_matrix-1)/FOV",
             "name": "FOVk",
             "readonly": false,
             "value": 430.4347826086956
@@ -253,13 +324,13 @@
             "expression": "TE/4",
             "name": "ACQ_dur",
             "readonly": false,
-            "value": 0.0035
+            "value": 0.005
         },
         {
             "expression": "FOVk/(gamma*ACQ_dur)",
             "name": "G_ro",
             "readonly": false,
-            "value": 0.0028884142229616836
+            "value": 0.0020218899560731788
         },
         {
             "expression": "1e-4",
@@ -269,15 +340,51 @@
         },
         {
             "expression": "2*flat_top_phase",
-            "name": "RF_dur",
+            "name": "RF1_dur",
             "readonly": false,
             "value": 0.002
         },
         {
-            "expression": "10e-3",
-            "name": "A",
+            "expression": "RF1_dur/2",
+            "name": "RF2_dur",
             "readonly": false,
-            "value": 0.01
+            "value": 0.001
+        },
+        {
+            "expression": "20e-5",
+            "name": "crusher_area",
+            "readonly": false,
+            "value": 0.0002
+        },
+        {
+            "expression": "60e-3",
+            "name": "Gmax",
+            "readonly": false,
+            "value": 0.06
+        },
+        {
+            "expression": "500",
+            "name": "Smax",
+            "readonly": false,
+            "value": 500
+        },
+        {
+            "expression": "Gmax",
+            "name": "crusher_amp",
+            "readonly": false,
+            "value": 0.06
+        },
+        {
+            "expression": "crusher_amp / Smax",
+            "name": "crusher_rise",
+            "readonly": false,
+            "value": 0.00011999999999999999
+        },
+        {
+            "expression": "crusher_area/crusher_amp - crusher_amp / Smax",
+            "name": "crusher_flat_top",
+            "readonly": false,
+            "value": 0.0032133333333333337
         }
     ]
 }
