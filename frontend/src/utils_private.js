@@ -73,7 +73,7 @@ function requestSimResult(loc){
         })
     .then(res => {
         if (res.redirected) {
-            // Caso en que se recibe un 303 (redirect)
+            // Case when receiving a 303 (redirect)
             document.getElementById("simProgress").style.visibility = "visible";
             document.getElementById('response').style.visibility    = "visible";
             
@@ -99,7 +99,7 @@ function requestSimResult(loc){
                     document.getElementById('myProgress').style.visibility = "collapse";
                     setTimeout(function() { requestSimResult(loc); }, 500);
                 } 
-            }).then(() => { return; });  // 🔹 IMPORTANTE: Evita que el flujo siga al siguiente .then()
+            }).then(() => { return; });  // 🔹 IMPORTANT: Prevents flow from continuing to the next .then()
         } if (res.ok) {
             clearSimulationPanel();
             return res.text();
@@ -259,7 +259,7 @@ function plot_seq(scanner_json, seq_json){
     const scannerObj = JSON.parse(scanner_json);
     const seqObj     = JSON.parse(seq_json);
 
-    // Combina los dos objetos en uno solo
+    // Combine the two objects into one
     const combinedObj = {
         scanner: scannerObj,
         sequence: seqObj,
@@ -333,7 +333,7 @@ function logout() {
     fetch('/logout')
         .then(res => {
             if (res.status == 200) {
-                console.log("Esto va bien?");
+                console.log("Is this working well?");
                 localStorage.clear();
                 setTimeout(() => {location.href = "/login";}, 0);
             }

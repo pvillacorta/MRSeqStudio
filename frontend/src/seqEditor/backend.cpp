@@ -20,7 +20,7 @@ QByteArray Backend::processJSONSequence(QByteArray data){
         int code = block["cod"];
         int cont = 0;
 
-        // Verificar si el valor 'code' está presente en cada vector
+        // Check if the 'code' value is present in each vector
         bool durationActive = this->active(code,{1, 2, 4});
         bool linesActive = this->active(code,{5, 6});
         bool samplesActive = this->active(code,{4, 5, 6});
@@ -125,7 +125,7 @@ QByteArray Backend::parseJSONSequenceToQML(QByteArray data){
         int code = block["cod"];
         int cont = 0;
 
-        // Verificar si el valor 'code' está presente en cada vector
+        // Check if the 'code' value is present in each vector
         bool durationActive = this->active(code,{1, 2, 4});
         bool linesActive = this->active(code,{5, 6});
         bool samplesActive = this->active(code,{4, 5, 6});
@@ -350,10 +350,10 @@ void Backend::getUploadSequence(){
         } else {
             QByteArray qmlData;
             std::string name = fileName.toStdString();
-            // Encuentra la posición del último punto en la cadena
+            // Find the position of the last dot in the string
             size_t lastDotPosition = name.find_last_of('.');
 
-            // Verifica si se encontró un punto y extrae la extensión
+            // Check if a dot was found and extract the extension
             if (lastDotPosition != std::string::npos) {
                 std::string extension = name.substr(lastDotPosition + 1);
                 if (extension == "json"){
@@ -372,8 +372,8 @@ void Backend::getUploadSequence(){
                 EM_ASM({
                     var tempFileName = $2 + ".qml";
                     var stream = FS.open(tempFileName,'w');
-                    var dataPtr = $0; // Obtén el puntero al inicio del bloque de datos
-                    var dataSize = $1; // Obtén el tamaño de los datos
+                    var dataPtr = $0; // Get the pointer to the start of the data block
+                    var dataSize = $1; // Get the size of the data
                     FS.write(stream, HEAPU8, dataPtr, dataSize, 0);
                     FS.close(stream);
                 }, qmlData.data(), qmlData.size(), fileNumber);
@@ -414,8 +414,8 @@ void Backend::getUploadScanner(){
                 EM_ASM({
                     var tempFileName = $2 + ".qml";
                     var stream = FS.open(tempFileName,'w');
-                    var dataPtr = $0; // Obtén el puntero al inicio del bloque de datos
-                    var dataSize = $1; // Obtén el tamaño de los datos
+                    var dataPtr = $0; // Get the pointer to the start of the data block
+                    var dataSize = $1; // Get the size of the data
                     FS.write(stream, HEAPU8, dataPtr, dataSize, 0);
                     FS.close(stream);
                 }, qmlData.data(), qmlData.size(), fileNumber);

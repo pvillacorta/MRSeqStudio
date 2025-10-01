@@ -423,7 +423,7 @@ ApplicationWindow {
             // Convertimos el ListModel en un array de JavaScript
             var array = [];
             for (var i = 0; i < obj.count; i++) {
-                array.push(convertStringsToNumbers(obj.get(i))); // Recursión en cada elemento
+                array.push(convertStringsToNumbers(obj.get(i))); // Recursion on each element
             }
             return array; // Devuelve un array JavaScript con valores convertidos
         } else if (Array.isArray(obj)) {
@@ -432,7 +432,7 @@ ApplicationWindow {
             var newObj = {};
             for (var key in obj) {
                 if (typeof obj[key] === "string" && !isNaN(evalExpression(obj[key]))) {
-                    newObj[key] = evalExpression(obj[key]); // Convertimos valores numéricos en string
+                    newObj[key] = evalExpression(obj[key]); // Convert numeric values to string
                 } else if (obj[key] instanceof ListModel || Array.isArray(obj[key])) {
                     newObj[key] = convertStringsToNumbers(obj[key]); // Convertimos recursivamente listas
                 } else {
@@ -523,7 +523,7 @@ ApplicationWindow {
                 }
             }
 
-            // Si no se encontró, agregar la nueva variable
+            // If not found, add the new variable
             if (!found) {
                 variablesList.append({
                     name: importedVar.name,
@@ -587,7 +587,7 @@ ApplicationWindow {
                 }
             }
 
-            // Reemplazar nombres de variables en la expresión con sus valores
+            // Replace variable names in the expression with their values
             let replacedExpression = expression.replace(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g, match => {
                 if (variables.hasOwnProperty(match)) {
                     let value = variables[match];
@@ -603,7 +603,7 @@ ApplicationWindow {
                 }
             });
 
-            // Evaluar la expresión matemática
+            // Evaluate the mathematical expression
             let result = new Function(`return (${replacedExpression});`)();
             
             // Validate the result

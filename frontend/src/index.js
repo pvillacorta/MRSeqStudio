@@ -225,7 +225,7 @@ async function loadNifti() {
   const fileName = niftiFile.split("/")[niftiFile.split("/").length - 1]
   const { image: itkImage, webWorker } = await niftiReadImage({
     data: new Uint8Array(niftiArrayBuffer),
-    // tienes que darle el nombre del archivo, no sé muy bien por qué
+    // you have to give it the filename, not sure why
     path: fileName
   })
   webWorker.terminate()
