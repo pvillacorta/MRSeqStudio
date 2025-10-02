@@ -7,6 +7,7 @@ frontend/node_modules
 backend/Manifest.toml
 backend/auth.txt
 backend/users.txt
+backend/db_config.toml
 *.pem
 jwkkey.json
 jwkpub.json

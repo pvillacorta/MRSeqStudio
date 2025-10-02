@@ -291,19 +291,54 @@ json_to_scanner(json_scanner::JSON3.Object) = begin
 end
 "Obtain raw RM signal. Input arguments are a 2D matrix (sequence) and a 1D vector (system parameters)"
 sim(obj, seq, sys, path, gpu_active; sim_params=Dict{String,Any}()) = begin
+   local result
+   local gpu_was_used = false
+   
    try
+      # Configurar modo de simulación
       if gpu_active
          sim_params["gpu"] = true
+         gpu_was_used = true
       else
          sim_params["gpu"] = false
       end
-      return simulate(obj, seq, sys; sim_params=sim_params, w=path)
+      
+      # Ejecutar simulación
+      result = simulate(obj, seq, sys; sim_params=sim_params, w=path)
+      return result
+      
    catch e
       println("Simulation failed")
       display(e)
+      
       update_progress!(path, -2)
-      return e
+      result = e
+      
+   finally
+      # Liberar recursos explícitamente según donde se realizó la simulación
+      if gpu_was_used
+         # Liberar recursos GPU
+         CUDA.reclaim()  # Libera memoria no utilizada en la GPU
+         GC.gc(true)     # Forzar recolección de basura completa
+         
+         # Sincronizar para asegurar que las operaciones GPU hayan terminado
+         try CUDA.synchronize() catch end
+      else
+         # Liberar recursos CPU y RAM
+         GC.gc(true)     # Forzar recolección de basura completa
+      end
+      
+      # Asegurar que se actualiza el estado final si no se ha hecho
+      try
+         if !isfile(path) || filesize(path) == 0
+            update_progress!(path, -2)
+         end
+      catch
+         println("Strange error come here to see more")
+      end
    end
+   
+   return result
 end
 
 

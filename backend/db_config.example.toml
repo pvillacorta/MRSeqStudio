@@ -1,0 +1,6 @@
+# db_config.example.toml
+host = "localhost"
+port = 3306
+database = "dbnamehere"
+user = "userhere"
+password = "passhere"

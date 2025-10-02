@@ -13,6 +13,7 @@ end
 
 using Oxygen
 using HTTP
+using TOML
 using MySQL
 using DBInterface
 using SwaggerMarkdown
