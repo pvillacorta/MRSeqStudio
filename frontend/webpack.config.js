@@ -56,6 +56,7 @@ module.exports = (env, argv) => {
                 patterns: [
                     { from: 'src/utils_private.js', to: '.' },
                     { from: 'src/assets', to: 'assets' },
+                    { from: 'src/favicon.ico', to: '.' },
                     { from: 'node_modules/@itk-wasm/image-io/dist/pipelines/*.{js,wasm,wasm.zst}', to: 'pipelines/[name][ext]' }
                 ],
             }),
