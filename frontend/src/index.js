@@ -109,6 +109,9 @@ async function setNormalPlane(gx, gy, gz, deltaf, gamma){
 window.setNormalPlane = setNormalPlane
 
 async function displayVolume(filename){
+  console.log(`[displayVolume] Starting execution for filename: ${filename}`);
+  const startTime = performance.now();
+  
   // Store current phantom for map changes
   window.currentPhantom = filename
   
@@ -181,6 +184,11 @@ async function displayVolume(filename){
   }finally{
     loading.style.display = "none"; 
     setViewerMode(currentMode);
+    
+    // Measure and log execution time
+    const endTime = performance.now();
+    const executionTime = endTime - startTime;
+    console.log(`[displayVolume] Execution completed in ${executionTime.toFixed(2)}ms for filename: ${filename}`);
   }
 }
 window.displayVolume = displayVolume
