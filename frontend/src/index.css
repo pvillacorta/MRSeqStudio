@@ -10,7 +10,7 @@
 html, body {
     height: 100%;
     overflow: hidden; 
-    background-color: #22262a;
+    background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
 }
 
 [id^="screen"] {
@@ -21,30 +21,55 @@ html, body {
 
 
 .tabs-mobile {
-    display: block;
+    display: flex;
+    margin: 0;
+    border-bottom: 1px solid #ffffff;
+    background: #2d2d2d;
+    border-radius: 12px 12px 0 0;
+    overflow: visible;
     height: var(--navbar-size);
+    margin-right: var(--navbar-size);
+    position: relative;
 }
 
 .tablinks {
-    background-color: #04AA6D;
+    padding: 0;
+    cursor: pointer;
     border: none;
-    color: white;
-    text-align: center;
-    padding: 10px;
-    text-decoration: none;
-    display: inline-block;
+    background: transparent;
+    color: #b0b0b0;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
+    flex: 1;
     font-size: 14px;
-    margin-right: -4px;
-} 
-
-.tab-active {
-    background-color: #046642;
-    font-weight: bold;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    border-radius: 8px 8px 0 0;
 }
 
-/* File loader */
-#my_file {
-    display: none;
+.tablinks:hover:not(.tab-active) {
+    color: #ffffff;
+    background: rgba(79, 70, 229, 0.1);
+}
+
+.tab-active {
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    color: white;
+    border: 1px solid #ffffff;
+}
+
+.tab-active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #4f46e5;
 }
 
 #wasmView{
@@ -222,7 +247,7 @@ html, body {
 
 .box{
     position:fixed;
-    top: var(--navbar-size);
+    top: calc(var(--navbar-size) + 1px);
 }
 
 @media only screen and (min-width: 1500px) and (min-height: 680px) {
