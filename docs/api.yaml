@@ -1,44 +1,100 @@
 openapi: 3.0.0
 paths:
-  /:
-    get:
-      summary: Redirect to the app
+  '/api/admin/users/{userId}':
+    delete:
+      summary: Delete a user
+      parameters:
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: integer
+          description: The user ID to delete
       responses:
-        '301':
-          headers:
-            Location:
-              description: URL with the app
+        '200':
+          content:
+            application/json:
               schema:
-                format: uri
-                type: string
-          description: Redirect to /app
-        default:
-          headers:
-            Location:
-              schema:
-                example: /app
-                type: string
-          description: Always returns a 301 redirect to /app
+                properties:
+                  message:
+                    type: string
+                type: object
+          description: User deleted successfully
+        '403':
+          description: Access denied - admin permissions required
+        '404':
+          description: User not found
+        '409':
+          description: Conflict - cannot delete administrator user
+        '500':
+          description: Internal server error
       tags:
-        - web
-      description: Redirect to the app
-  /app:
+        - admin
+      description: Deletes a user account and all associated data.
+  '/api/admin/sequence-usage/{usageId}':
+    put:
+      summary: Update sequence usage record
+      parameters:
+        - name: usageId
+          required: true
+          in: path
+          schema:
+            type: integer
+          description: The sequence usage ID to update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - sequences_used
+              properties:
+                sequences_used:
+                  type: integer
+                  description: The number of sequences used
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                type: object
+          description: Sequence usage updated successfully
+        '400':
+          description: Bad request - missing sequences_used field
+        '403':
+          description: Access denied - admin permissions required
+        '404':
+          description: Sequence usage record not found
+        '500':
+          description: Internal server error
+      tags:
+        - admin
+      description: Updates the sequence usage count for a specific record.
+  /admin:
     get:
-      summary: Get the app and the web content
+      summary: Get admin panel page
       responses:
         '200':
           content:
             text/html:
               schema:
                 format: html
-          description: App and web content
-        '404':
-          description: Not found
+          description: Admin panel HTML page
+        '303':
+          description: Redirect to login - not authenticated
+        '403':
+          description: Access denied - admin permissions required
         '500':
           description: Internal server error
       tags:
-        - web
-      description: Get the app and the web content
+        - admin
+      description: >-
+        Returns the administration panel HTML page for managing users,
+        sequences, and results.
   /simulate:
     post:
       summary: Add a new simulation request
@@ -46,7 +102,6 @@ paths:
         content:
           application/json:
             example:
-              phantom: Brain 2D
               sequence:
                 blocks:
                   - duration: 0.001
@@ -76,12 +131,13 @@ paths:
                     children: []
                   - duration: 0.001
                     name: ''
+                    adcPhase: 0
                     adcDelay: 0
                     ngroups: 0
                     samples: 64
                     cod: 4
                     gradients:
-                      - xis: x
+                      - axis: x
                         flatTop: 0.001
                         delay: 0
                         rise: 0.0005
@@ -107,8 +163,6 @@ paths:
                   b1: 0.00001
             schema:
               properties:
-                phantom:
-                  type: string
                 sequence:
                   type: object
                 scanner:
@@ -133,7 +187,137 @@ paths:
       tags:
         - simulation
       description: Add a new simulation request
-  /simulate/{simID}:
+  '/simulate/{simID}/status':
+    get:
+      summary: Get the status of a simulation
+      parameters:
+        - name: simID
+          required: true
+          in: path
+          description: The ID of the simulation
+          schema:
+            example: 1
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  progress:
+                    type: integer
+                    description: Simulation progress
+                type: object
+          description: Simulation status
+        '404':
+          description: Simulation not found
+        '500':
+          description: Internal server error
+      tags:
+        - simulation
+      description: >
+        Get the status of a simulation:
+
+        - If the simulation has not started yet, it returns -1
+
+        - If the simulation has has failed, it returns -2
+
+        - If the simulation is running, it returns a value between 0 and 100
+
+        - If the simulation has finished but the reconstruction is in progress,
+        it returns 100
+
+        - If the reconstruction has finished, it returns 101
+  '/api/admin/users/{userId}/reset-password':
+    post:
+      summary: Reset user password
+      parameters:
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: integer
+          description: The user ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - new_password
+              properties:
+                new_password:
+                  type: string
+                  description: The new password for the user
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                type: object
+          description: Password reset successfully
+        '400':
+          description: Bad request - missing new password
+        '403':
+          description: Access denied - admin permissions required
+        '404':
+          description: User not found
+        '500':
+          description: Internal server error
+      tags:
+        - admin
+      description: Resets the password for a specific user.
+  '/api/results/{id}/download':
+    get:
+      summary: Download simulation result
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: integer
+          description: The result ID to download
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+          description: File download
+        '401':
+          description: Not authenticated
+        '403':
+          description: Access denied - result belongs to another user
+        '404':
+          description: Result not found
+        '500':
+          description: Internal server error
+      tags:
+        - results
+      description: Downloads a specific simulation result file for the authenticated user.
+  /app:
+    get:
+      summary: Get the app and the web content
+      responses:
+        '200':
+          content:
+            text/html:
+              schema:
+                format: html
+          description: App and web content
+        '404':
+          description: Not found
+        '500':
+          description: Internal server error
+      tags:
+        - gui
+      description: Get the app and the web content
+  '/simulate/{simID}':
     get:
       summary: Get the result of a simulation
       parameters:
@@ -181,45 +365,167 @@ paths:
         Get the result of a simulation. If the simulation has finished, it
         returns its result. If not, it returns 303 with location =
         /simulate/{simID}/status
-  /simulate/{simID}/status:
-    get:
-      summary: Get the status of a simulation
+  '/recon/{simID}':
+    post:
+      summary: Start reconstruction for a completed simulation
       parameters:
         - name: simID
           required: true
           in: path
-          description: The ID of the simulation
+          description: The ID of the completed simulation to reconstruct
           schema:
             example: 1
             type: integer
+      responses:
+        '202':
+          headers:
+            Location:
+              description: >-
+                URL with the reconstruction ID, to check the status of the
+                reconstruction
+              schema:
+                format: uri
+                type: string
+          description: Accepted operation
+        '400':
+          description: Invalid input (no simulation data or simulation not complete)
+        '500':
+          description: Internal server error
+      tags:
+        - reconstruction
+      description: >-
+        Start reconstruction for a previously completed simulation using the
+        existing simulation data
+  /register:
+    post:
+      summary: Register a new user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                password:
+                  type: string
+                username:
+                  type: string
+                email:
+                  type: string
+              required:
+                - username
+                - password
+                - email
+              type: object
+        required: true
+      responses:
+        '201':
+          description: User created successfully
+        '400':
+          description: Invalid input or user already exists
+        '500':
+          description: Internal server error
+      tags:
+        - users
+      description: 'Registers a new user with username, password, and email.'
+    get:
+      summary: Get the registration page
+      responses:
+        '200':
+          content:
+            text/html:
+              schema:
+                format: html
+          description: Registration HTML page
+        '404':
+          description: Not found
+        '500':
+          description: Internal server error
+      tags:
+        - users
+      description: Returns the registration HTML page.
+  /login:
+    post:
+      summary: Authenticate user and start session
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                password:
+                  type: string
+                username:
+                  type: string
+              required:
+                - username
+                - password
+              type: object
+        required: true
+      responses:
+        '200':
+          description: 'Login successful, JWT token set in cookie'
+        '401':
+          description: Invalid credentials
+        '500':
+          description: Internal server error
+      tags:
+        - users
+      description: >-
+        Authenticates a user and starts a session, returning a JWT token in a
+        cookie.
+    get:
+      summary: Get the login page
+      responses:
+        '200':
+          content:
+            text/html:
+              schema:
+                format: html
+          description: Login HTML page
+        '404':
+          description: Not found
+        '500':
+          description: Internal server error
+      tags:
+        - users
+      description: Returns the login HTML page.
+  /api/admin/stats/sequences:
+    get:
+      summary: Get sequence usage statistics
       responses:
         '200':
           content:
             application/json:
               schema:
                 properties:
-                  progress:
-                    type: integer
-                    description: Simulation progress
+                  top_users:
+                    items:
+                      properties:
+                        total_sequences:
+                          type: integer
+                        username:
+                          type: string
+                      type: object
+                    type: array
+                  daily_stats:
+                    items:
+                      properties:
+                        total_sequences:
+                          type: integer
+                        date:
+                          format: date
+                          type: string
+                      type: object
+                    type: array
                 type: object
-          description: Simulation status
-        '404':
-          description: Simulation not found
+          description: Sequence usage statistics
+        '403':
+          description: Access denied - admin permissions required
         '500':
           description: Internal server error
       tags:
-        - simulation
+        - admin
       description: >-
-        Get the status of a simulation:
-
-        - If the simulation has not started yet, it returns -1
-
-        - If the simulation is running, it returns a value between 0 and 100
-
-        - If the simulation has finished but the reconstruction is in progress,
-        it returns 100
-
-        - If the reconstruction has finished, it returns 101
+        Returns statistics about sequence usage including daily stats and top
+        users.
   /plot_sequence:
     post:
       summary: Plot a sequence
@@ -257,6 +563,7 @@ paths:
                     children: []
                   - duration: 0.001
                     name: ''
+                    adcPhase: 0
                     adcDelay: 0
                     ngroups: 0
                     samples: 64
@@ -311,8 +618,409 @@ paths:
         '500':
           description: Internal server error
       tags:
-        - plot_sequence
+        - plot
       description: Plot a sequence
+  /api/admin/users:
+    post:
+      summary: Create a new user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - username
+                - password
+                - email
+              properties:
+                is_admin:
+                  default: false
+                  type: boolean
+                  description: Administrator status
+                storage_quota_mb:
+                  default: 0.5
+                  type: number
+                  description: Storage quota in MB
+                max_daily_sequences:
+                  default: 10
+                  type: integer
+                  description: Maximum daily sequences allowed
+                password:
+                  type: string
+                  description: User password
+                is_premium:
+                  default: false
+                  type: boolean
+                  description: Premium user status
+                gpu_access:
+                  default: false
+                  type: boolean
+                  description: GPU access permission
+                username:
+                  type: string
+                  description: Unique username for the user
+                email:
+                  format: email
+                  type: string
+                  description: User email address
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                  id:
+                    type: integer
+                  username:
+                    type: string
+                type: object
+          description: User created successfully
+        '400':
+          description: Bad request - missing required fields
+        '403':
+          description: Access denied - admin permissions required
+        '409':
+          description: Conflict - username or email already exists
+        '500':
+          description: Internal server error
+      tags:
+        - admin
+      description: Creates a new user account with the specified details and permissions.
+  '/api/results/{id}':
+    delete:
+      summary: Delete simulation result
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: integer
+          description: The result ID to delete
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                type: object
+          description: Result deleted successfully
+        '401':
+          description: Not authenticated
+        '403':
+          description: Access denied - result belongs to another user
+        '404':
+          description: Result not found
+        '500':
+          description: Internal server error
+      tags:
+        - results
+      description: Deletes a specific simulation result for the authenticated user.
+  '/api/admin/results/{resultId}':
+    delete:
+      summary: Delete a simulation result
+      parameters:
+        - name: resultId
+          required: true
+          in: path
+          schema:
+            type: integer
+          description: The result ID to delete
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                type: object
+          description: Result deleted successfully
+        '403':
+          description: Access denied - admin permissions required
+        '404':
+          description: Result not found
+        '500':
+          description: Internal server error
+      tags:
+        - admin
+      description: Deletes a specific simulation result and its associated file.
+  /plot_phantom:
+    post:
+      summary: Initialize and plot the selected phantom for the user
+      requestBody:
+        content:
+          application/json:
+            example:
+              phantom: brain2D
+              height: 600
+              map: PD
+              width: 800
+            schema:
+              properties:
+                phantom:
+                  type: string
+                  description: >-
+                    Name of the phantom to initialize (e.g., "brain2D",
+                    "aorta3D", etc.)
+                height:
+                  type: integer
+                  description: Plot height in pixels
+                map:
+                  type: string
+                  description: 'Map to plot ("PD", "T1", "T2", "dw", etc.)'
+                width:
+                  type: integer
+                  description: Plot width in pixels
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            text/html:
+              schema:
+                format: html
+          description: Interactive HTML plot of the selected phantom
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized (missing or invalid JWT)
+        '500':
+          description: Internal server error
+      tags:
+        - plot
+      description: >
+        This endpoint is called from the frontend every time the user changes
+        the "Phantom" field in the interface. It initializes the user's phantom
+        in the backend according to the selected value and returns an HTML
+        response with an interactive plot of the selected phantom. The plot
+        corresponds to the selected map (e.g., PD, T1, T2, Δw) and is sized
+        according to the provided width and height. The user must be
+        authenticated (requires Authorization header with JWT).
+  /logout:
+    get:
+      summary: Logout user
+      responses:
+        '200':
+          headers:
+            Set-Cookie:
+              description: JWT token cookie cleared
+              schema:
+                type: string
+          description: 'Logout successful, JWT cookie cleared'
+        '401':
+          description: Not authenticated
+        '500':
+          description: Internal server error
+      tags:
+        - users
+      description: Logs out the current user and invalidates the session.
+  /api/admin/sequence-usage:
+    get:
+      summary: Get all sequence usage data
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  properties:
+                    sequences_used:
+                      type: integer
+                    id:
+                      type: integer
+                    username:
+                      type: string
+                    date:
+                      format: date
+                      type: string
+                  type: object
+                type: array
+          description: List of all sequence usage records
+        '403':
+          description: Access denied - admin permissions required
+        '500':
+          description: Internal server error
+      tags:
+        - admin
+      description: Returns a list of all sequence usage records in the system.
+  /api/admin/results:
+    get:
+      summary: Get all simulation results
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  properties:
+                    file_size_mb:
+                      type: number
+                    created_at:
+                      format: date-time
+                      type: string
+                    id:
+                      type: integer
+                    username:
+                      type: string
+                    sequence_id:
+                      type: string
+                    file_path:
+                      type: string
+                  type: object
+                type: array
+          description: List of all simulation results
+        '403':
+          description: Access denied - admin permissions required
+        '500':
+          description: Internal server error
+      tags:
+        - admin
+      description: Returns a list of all simulation results in the system.
+  /api/results:
+    get:
+      summary: Get user's simulation results
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  properties:
+                    file_size_mb:
+                      type: number
+                    created_at:
+                      format: date-time
+                      type: string
+                    id:
+                      type: integer
+                    sequence_id:
+                      type: string
+                    file_path:
+                      type: string
+                  type: object
+                type: array
+          description: List of user's simulation results
+        '401':
+          description: Not authenticated
+        '500':
+          description: Internal server error
+      tags:
+        - results
+      description: Returns all simulation results for the authenticated user.
+  '/api/admin/users/{userId}/sequences':
+    get:
+      summary: Get sequence usage for a specific user
+      parameters:
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: integer
+          description: The user ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  properties:
+                    sequences_used:
+                      type: integer
+                    id:
+                      type: integer
+                    username:
+                      type: string
+                    date:
+                      format: date
+                      type: string
+                  type: object
+                type: array
+          description: User sequence usage statistics
+        '403':
+          description: Access denied - admin permissions required
+        '404':
+          description: User not found
+        '500':
+          description: Internal server error
+      tags:
+        - admin
+      description: Returns sequence usage statistics for a specific user.
+  /api/admin/sequences:
+    get:
+      summary: Get all sequences
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  properties:
+                    created_at:
+                      format: date-time
+                      type: string
+                    id:
+                      type: integer
+                    username:
+                      type: string
+                    sequence_id:
+                      type: string
+                    date:
+                      format: date
+                      type: string
+                  type: object
+                type: array
+          description: List of all sequences
+        '403':
+          description: Access denied - admin permissions required
+        '500':
+          description: Internal server error
+      tags:
+        - admin
+      description: Returns a list of all sequences created by users in the system.
+  '/api/admin/sequences/{userId}':
+    get:
+      summary: Get sequences for a specific user
+      parameters:
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: integer
+          description: The user ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  properties:
+                    created_at:
+                      format: date-time
+                      type: string
+                    id:
+                      type: integer
+                    sequence_id:
+                      type: string
+                    date:
+                      format: date
+                      type: string
+                  type: object
+                type: array
+          description: List of sequences for the user
+        '403':
+          description: Access denied - admin permissions required
+        '404':
+          description: User not found
+        '500':
+          description: Internal server error
+      tags:
+        - admin
+      description: Returns all sequences created by a specific user.
 info:
   title: MRSeqStudio API
   version: 1.0.0
