@@ -33,37 +33,32 @@ using StructTypes
 end
 
 dynamic_files_path = string(@__DIR__, "/../frontend/dist")
-public_files_path  = string(@__DIR__, "/../public")
+phantom_files_path = string(@__DIR__, "/phantoms")
 
 dynamicfiles(dynamic_files_path, "/") 
-staticfiles(public_files_path, "/public")
+staticfiles(phantom_files_path, "/public")
 
-const PUBLIC_URLS = ["/login", "/login.js", "/login.js.map", 
-                     "/register", "/", "/admin"]
-const PRIVATE_URLS = ["/simulate", "/plot", "/plot_sequence", "/plot_phantom"]
+const PUBLIC_URLS = ["/login", "/login.js", "/login.js.map", "/register"]
+const PRIVATE_URLS = ["/simulate", "/recon", "/plot_sequence", "/plot_phantom"]
+const ADMIN_URLS = ["/admin", "/api/admin/users", "/api/admin/sequences", "/api/admin/sequences/{userId}", "/api/admin/results/{resultId}", "/api/admin/results/{resultId}", "/api/admin/stats/sequences", "/api/admin/users/{userId}/sequences"]
+
+const AUTH_FILE  = "auth.txt"
+const USERS_FILE = "users.txt"
 
 global simID = 1
-global SIM_PROGRESSES  = Dict{Int, Int}()
+# Dictionaries whose key is the simulation ID
+global SIM_METADATA     = Dict{Int, Any}()
+global SIM_PROGRESSES   = Dict{Int, Int}()
 global RECON_PROGRESSES = Dict{Int, Int}()
-global STATUS_FILES    = Dict{Int, String}()
-
-# Additional state to support new plotting features
+global STATUS_FILES     = Dict{Int, String}()
+# Dictionaries whose key is the username
 global RAW_RESULTS      = Dict{String, Any}()
 global RECON_RESULTS    = Dict{String, Any}()
 global PHANTOMS         = Dict{String, Phantom}()   
 global SEQUENCES        = Dict{String, Sequence}()   
 global SCANNERS         = Dict{String, Scanner}()
 global ROT_MATRICES     = Dict{String, Matrix}() 
-
-global SIM_RESULTS     = Dict{Int, Any}()
-global SIM_METADATA    = Dict{Int, Any}()
 global ACTIVE_SESSIONS  = Dict{String, Int}()
-# ---------------------------- GLOBAL VARIABLES --------------------------------
-# Estas no harán falta una vez esté la tabla simulación-proceso implementada
-
-# global statusFile = ""
-# global simProgress = -1
-# global result = nothing
 
 # ------------------------------ FUNCTIONS ------------------------------------
 
@@ -79,10 +74,8 @@ global ACTIVE_SESSIONS  = Dict{String, Int}()
    
    """Updates simulation progress and writes it in a file."""
    function KomaMRICore.update_blink_window_progress!(w::String, block, Nblocks)
-      io = open(w,"w") # "w" mode overwrites last status value, even if it was not read yet
       progress = trunc(Int, block / Nblocks * 100)
-      write(io,progress)
-      close(io)
+      update_progress!(w, progress)
       return nothing
    end
 
@@ -116,34 +109,98 @@ end
 function AuthMiddleware(handler)
    return function(req::HTTP.Request)
       println("Auth middleware")
-
       path = String(req.target)
-
       jwt1 = get_jwt_from_cookie(HTTP.header(req, "Cookie"))
       jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
-
+      username = claims(jwt1)["username"]
+      if username === nothing
+         println("❌ User not authenticated, redirecting to login page")
+         return HTTP.Response(303, ["Location" => "/login"])
+      end
       ipaddr = string(HTTP.header(req, "X-Forwarded-For", "127.0.0.1"))
-
-      # Caso especial para /admin - siempre permitir acceso directo al endpoint
-      if path == "/admin"
-         return handler(req)  # Permite que el endpoint /admin maneje su propia autenticación
-      
+      if path in ADMIN_URLS
+      # Admin resource. This requires both the cookie and the Authorization header, as well as admin permissions
+         if (check_jwt(jwt1, ipaddr, 1) && check_jwt(jwt2, ipaddr, 2))
+            is_admin_user = check_admin(jwt1, jwt2)
+            if is_admin_user
+               println("✅ User $username is an admin")
+               handler(req)
+            else
+               println("❌ User $username is not an admin, access denied")
+               return HTTP.Response(403, ["Content-Type" => "text/html"],
+                  """
+                  <html>
+                  <head><title>Access Denied</title></head>
+                  <body>
+                        <h1>Access Denied</h1>
+                        <p>You do not have admin permissions to access this page.</p>
+                        <p><a href="/app">Back to the application</a></p>
+                  </body>
+                  </html>
+                  """)
+            end
+         else
+            return HTTP.Response(303, ["Location" => "/login"])
+         end
       elseif (path in PUBLIC_URLS) 
       # Public resource. This does not requires cookie
-         return check_jwt(jwt1, ipaddr, 1) ? HTTP.Response(303, ["Location" => "/"]) : handler(req)
-
+         return check_jwt(jwt1, ipaddr, 1) ? HTTP.Response(303, ["Location" => "/app"]) : handler(req)
       elseif any(base -> startswith(path, base), PRIVATE_URLS) 
       # Private resource. This requires both the cookie and the Authorization header
          return (check_jwt(jwt1, ipaddr, 1) && check_jwt(jwt2, ipaddr, 2)) ? handler(req) : HTTP.Response(303, ["Location" => "/login"])
-
       else 
-      # Private dashboard. This only requires the cookie
+      # Private dashboard. This only requires the cookie.
          return check_jwt(jwt1, ipaddr, 1) ? handler(req) : HTTP.Response(303, ["Location" => "/login"])
       end
    end
 end
 
 # ---------------------------- API METHODS ---------------------------------
+@swagger """
+/login:
+   get:
+      tags:
+      - users
+      summary: Get the login page
+      description: Returns the login HTML page.
+      responses:
+         '200':
+            description: Login HTML page
+            content:
+              text/html:
+                schema:
+                  format: html
+         '404':
+            description: Not found
+         '500':
+            description: Internal server error
+   post:
+      tags:
+      - users
+      summary: Authenticate user and start session
+      description: Authenticates a user and starts a session, returning a JWT token in a cookie.
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  properties:
+                     username:
+                        type: string
+                     password:
+                        type: string
+                  required:
+                     - username
+                     - password
+      responses:
+         '200':
+            description: Login successful, JWT token set in cookie
+         '401':
+            description: Invalid credentials
+         '500':
+            description: Internal server error
+"""
 @get "/login" function(req::HTTP.Request) 
    return render_html(dynamic_files_path * "/login.html")
 end
@@ -154,6 +211,54 @@ end
    return authenticate(input_data["username"], input_data["password"], ipaddr)
 end
 
+@swagger """
+/register:
+   get:
+      tags:
+      - users
+      summary: Get the registration page
+      description: Returns the registration HTML page.
+      responses:
+         '200':
+            description: Registration HTML page
+            content:
+              text/html:
+                schema:
+                  format: html
+         '404':
+            description: Not found
+         '500':
+            description: Internal server error
+   post:
+      tags:
+      - users
+      summary: Register a new user
+      description: Registers a new user with username, password, and email.
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  properties:
+                     username:
+                        type: string
+                     password:
+                        type: string
+                     email:
+                        type: string
+                  required:
+                     - username
+                     - password
+                     - email
+      responses:
+         '201':
+            description: User created successfully
+         '400':
+            description: Invalid input or user already exists
+         '500':
+            description: Internal server error
+"""
 @get "/register" function(req::HTTP.Request) 
    return render_html(dynamic_files_path * "/register.html")
 end
@@ -163,6 +268,26 @@ end
    return create_user(input_data["username"], input_data["password"], input_data["email"])
 end
 
+@swagger """
+/logout:
+   get:
+      tags:
+      - users
+      summary: Logout user
+      description: Logs out the current user and invalidates the session.
+      responses:
+         '200':
+            description: Logout successful, JWT cookie cleared
+            headers:
+               Set-Cookie:
+                  description: JWT token cookie cleared
+                  schema:
+                     type: string
+         '401':
+            description: Not authenticated
+         '500':
+            description: Internal server error
+"""
 @get "/logout" function(req::HTTP.Request) 
    jwt1 = get_jwt_from_cookie(HTTP.header(req, "Cookie"))
    username = claims(jwt1)["username"]
@@ -175,38 +300,10 @@ end
 end
 
 @swagger """
-/:
-   get:
-      tags:
-      - web
-      summary: Redirect to the app
-      description: Redirect to the app
-      responses:
-         '301':
-            description: Redirect to /app
-            headers:
-              Location:
-                description: URL with the app
-                schema:
-                  type: string
-                  format: uri
-         default:
-            description: Always returns a 301 redirect to /app
-            headers:
-              Location:
-                schema:
-                  type: string
-                  example: "/app"
-"""
-@get "/" function(req::HTTP.Request)
-   return HTTP.Response(301, ["Location" => "/app"])
-end
-
-@swagger """
 /app:
    get:
       tags:
-      - web
+      - gui
       summary: Get the app and the web content
       description: Get the app and the web content
       responses:
@@ -240,14 +337,11 @@ end
                schema:
                   type: object
                   properties:
-                     phantom:
-                        type: string
                      sequence:
                         type: object
                      scanner:
                         type: object
                example:
-                  phantom: "Brain 2D"
                   sequence: {
                      "blocks": [
                         {
@@ -289,6 +383,7 @@ end
                         },
                         {
                            "adcDelay": 0,
+                           "adcPhase": 0,
                            "children": [],
                            "cod": 4,
                            "duration": 1e-3,
@@ -346,16 +441,15 @@ end
             description: Internal server error
 """
 @post "/simulate" function(req::HTTP.Request)
-    println("[Simulate/")
-   # Obtener información del usuario
+   # Get user information
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
    
-   # Verificar si el usuario puede ejecutar más secuencias hoy
+   # Verify if the user can run more sequences today
    if !user_can_run_more_sequences(uname)
-      println("⛔ ACCESO DENEGADO: Se ha rechazado la solicitud de simulación de '$uname' por exceder límite diario")
+         println("⛔ ACCESS DENIED: The simulation request for '$uname' has been rejected because it exceeded the daily limit")
       return HTTP.Response(403, ["Content-Type" => "application/json"],
-         JSON3.write(Dict("error" => "Has alcanzado tu límite diario de secuencias")))
+         JSON3.write(Dict("error" => "You have reached your daily sequence limit")))
    end
    pid = ACTIVE_SESSIONS[uname]
    # Configurar archivo de estado temporal
@@ -368,48 +462,34 @@ end
    SEQUENCES[uname], ROT_MATRICES[uname] = json_to_sequence(sequence_json, SCANNERS[uname])
    
    ########### movidas de secuencias y gestion de users
-   # Generar un ID único para la secuencia
+   # Generate a unique ID for the sequence
    sequence_unique_id = "seq_$(now())_$(rand(1:10000))"
    
-   # Guardar metadatos de la simulación
+   # Save simulation metadata
    SIM_METADATA[simID] = Dict(
       "uname" => uname,
       "sequence_id" => sequence_unique_id,
       "start_time" => now()
    )
 
-   # Registrar el uso de secuencia
+   # Register sequence usage
    register_sequence_usage(uname)
    save_sequence(uname, sequence_unique_id, SEQUENCES[uname])
-   #Comprobamos los privilegios para el uso de gpu
+   #Check the privileges for the gpu usage
    user_privs = get_user_privileges(uname)
    gpu_active = false
    if user_privs === nothing
-      println("[!!!] No se pudo obtener los privilegios para $uname")
+      println("[!!!] Could not get the privileges for $uname")
    else
       gpu_active = user_privs["gpu_access"]
    end
    ################ fin de movidas
-
 
    if !haskey(ACTIVE_SESSIONS, uname) # Check if the user has already an active session
       assign_process(uname) # We assign a new julia process to the user
    end
    # Simulation  (asynchronous. It should not block the HTTP 202 Response)
    RAW_RESULTS[uname]                    = @spawnat pid sim(PHANTOMS[uname], SEQUENCES[uname], SCANNERS[uname], STATUS_FILES[simID], gpu_active)
-
-   # while 1==1
-   #    io = open(statusFile,"r")
-   #    if (!eof(io))
-   #       global simProgress = read(io,Int32)
-   #       print("leido\n")
-   #    end
-   #    close(io)
-   #    print("Progreso: ", simProgress, '\n')
-   #    sleep(0.2)
-   # end
-
-   # TODO: Update simulation-process correspondence table
 
    headers = ["Location" => string("/simulate/",simID)]
    global simID += 1
@@ -465,7 +545,6 @@ end
             description: Internal server error
 """
 @get "/simulate/{simID}" function(req::HTTP.Request, simID, width::Int, height::Int)
-    println("[Simulate/simID]")
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
    _simID = parse(Int, simID)
@@ -487,27 +566,26 @@ end
       KomaMRIPlots.PlotlyBase.to_html(html_buffer, p.plot)
 
       ################ MOVIDAS DE GESTION ###############
-      # Solo guardamos el resultado si no se ha guardado anteriormente
+      # Only save the result if it has not been saved previously
       if haskey(SIM_METADATA, _simID) && !haskey(SIM_METADATA[_simID], "saved")
          metadata = SIM_METADATA[_simID]
          sequence_id = metadata["sequence_id"]
 
          
          
-         # Intentar guardar el resultado (verifica internamente los límites de espacio)
+         # Try to save the result (check internally the space limits)
          save_result = save_simulation_result(uname, sequence_id, sig)
          
-         # Marcar como guardado para evitar intentos repetidos
+         # Mark as saved to avoid repeated attempts
          SIM_METADATA[_simID]["saved"] = save_result
          if !save_result
-            println("⚠️ No se pudo guardar el resultado por exceder cuota de almacenamiento")
+            println("⚠️ Could not save the result because it exceeded the storage quota")
          end
       end
       ###################### MOVIDAS DE GESTION ##################
       return HTTP.Response(200,body=take!(html_buffer))
    elseif SIM_PROGRESSES[_simID] == -2 # Simulation failed
-      error_msg = fetch(SIM_RESULTS[_simID])
-      return HTTP.Response(500,body=JSON3.write(error_msg))
+      return HTTP.Response(500,body=JSON3.write("Simulation failed"))
    end
 end
 
@@ -612,6 +690,7 @@ end
    return HTTP.Response(202,headers)
 end
 
+
 @get "/recon/{simID}" function(req::HTTP.Request, simID, width::Int, height::Int)
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
@@ -659,127 +738,9 @@ end
    return HTTP.Response(200,body=JSON3.write(RECON_PROGRESSES[parse(Int, simID)]))
 end
 
-# PLOT SEQUENCE
+## PLOT SEQUENCE
 @swagger """
 /plot_sequence:
-   post:
-      tags:
-      - plot
-      summary: Plot a sequence
-      description: Plot a sequence and k-space for the user session
-      responses: 
-         '200':
-            description: Plot of the sequence
-            content:
-              text/html:
-                schema:
-                  format: html
-         '400':
-            description: Invalid input
-         '500':
-            description: Internal server error
-"""
-@post "/plot_sequence" function(req::HTTP.Request)
-   try
-      scanner_data = json(req)["scanner"]
-      seq_data     = json(req)["sequence"]
-      width  = json(req)["width"]  - 15
-      height = json(req)["height"] - 20
-      jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
-      uname = claims(jwt2)["username"]
-
-      if !haskey(ACTIVE_SESSIONS, uname)
-         assign_process(uname)
-      end
-      pid = ACTIVE_SESSIONS[uname]
-
-      SCANNERS[uname]                       = json_to_scanner(scanner_data)
-      seq_obj, rot = json_to_sequence(seq_data, SCANNERS[uname])
-      SEQUENCES[uname]        = seq_obj
-      ROT_MATRICES[uname]     = rot
-
-      p_seq    = remotecall_fetch(plot_seq, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height, slider=height>275)
-      p_kspace = remotecall_fetch(plot_kspace, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height)
-
-      seq_buffer = IOBuffer()
-      kspace_buffer = IOBuffer()
-      KomaMRIPlots.PlotlyBase.to_html(seq_buffer, p_seq.plot)
-      KomaMRIPlots.PlotlyBase.to_html(kspace_buffer, p_kspace.plot)
-
-      seq_html = String(take!(seq_buffer))
-      kspace_html = String(take!(kspace_buffer))
-
-      result = Dict(
-          "seq_html" => seq_html,
-          "kspace_html" => kspace_html
-      )
-
-      return HTTP.Response(200,body=JSON3.write(result))
-   catch e
-      return HTTP.Response(500,body=JSON3.write(string(e)))
-   end
-end
-
-# SELECT AND PLOT PHANTOM
-@swagger """
-/plot_phantom:
-   post:
-      tags:
-      - plot
-      summary: Initialize and plot the selected phantom for the user
-      responses: 
-         '200':
-            description: Interactive HTML plot of the selected phantom
-            content:
-              text/html:
-                schema:
-                  format: html
-         '400':
-            description: Invalid input
-         '401':
-            description: Unauthorized
-         '500':
-            description: Internal server error
-"""
-@post "/plot_phantom" function(req::HTTP.Request)
-   try
-      input_data = json(req)
-      phantom_string = input_data["phantom"]
-      map_str = input_data["map"]
-      map = map_str == "PD" ? :ρ  : 
-            map_str == "dw" ? :Δw : 
-            map_str == "T1" ? :T1 : 
-            map_str == "T2" ? :T2 : map_str
-      jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
-      uname = claims(jwt2)["username"]
-
-      if !haskey(ACTIVE_SESSIONS, uname) # Check if the user has already an active session
-         assign_process(uname) # Assign a new Julia process to the user
-      end
-      pid = ACTIVE_SESSIONS[uname]
-
-      phantom_path = "phantoms/$phantom_string/$phantom_string.phantom"
-      obj = read_phantom(phantom_path)
-      obj.Δw .= 0
-      PHANTOMS[uname] = obj
-
-      width  = json(req)["width"]  - 15
-      height = json(req)["height"] - 15
-      time_samples = obj.name == "Aorta"         ? 100 : 
-                     obj.name == "Flow Cylinder" ? 50  : 2;
-      ss           = obj.name == "Aorta"         ? 100 : 
-                     obj.name == "Flow Cylinder" ? 100 : 1;
-
-      p = @spawnat pid plot_phantom_map(PHANTOMS[uname][1:ss:end], map; darkmode=true, width=width, height=height, time_samples=time_samples)
-      html_buffer = IOBuffer()
-      KomaMRIPlots.PlotlyBase.to_html(html_buffer, fetch(p).plot)
-      return HTTP.Response(200,body=take!(html_buffer))
-   catch e
-      return HTTP.Response(500,body=JSON3.write(e))
-   end
-end
-@swagger """
-/plot:
    post:
       tags:
       - plot
@@ -851,6 +812,7 @@ end
                         },
                         {
                            "adcDelay": 0,
+                           "adcPhase": 0,
                            "children": [],
                            "cod": 4,
                            "duration": 1e-3,
@@ -898,18 +860,128 @@ end
          '500':
             description: Internal server error
 """
-@post "/plot" function(req::HTTP.Request)
+@post "/plot_sequence" function(req::HTTP.Request)
    try
-      json_data = normalize_keys(json(req))
-      scanner_data = json_data["scanner"]
-      seq_data     = json_data["sequence"]
-      width  = json_data["width"]  - 15
-      height = json_data["height"] - 20
-      sys = json_to_scanner(scanner_data)
-      seq = json_to_sequence(seq_data, sys)
-      p = plot_seq(seq; darkmode=true, width=width, height=height, slider=height>275)
+      scanner_data = json(req)["scanner"]
+      seq_data     = json(req)["sequence"]
+      width  = json(req)["width"]  - 15
+      height = json(req)["height"] - 20
+      jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
+      uname = claims(jwt2)["username"]
+
+      if !haskey(ACTIVE_SESSIONS, uname) # Check if the user has already an active session
+         assign_process(uname) # Assign a new Julia process to the user
+      end
+      pid = ACTIVE_SESSIONS[uname]
+
+      SCANNERS[uname]                       = json_to_scanner(scanner_data)
+      SEQUENCES[uname], ROT_MATRICES[uname] = json_to_sequence(seq_data, SCANNERS[uname])
+
+      p_seq    = remotecall_fetch(plot_seq, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height, slider=height>275)
+      p_kspace = remotecall_fetch(plot_kspace, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height)
+
+      seq_buffer = IOBuffer()
+      kspace_buffer = IOBuffer()
+      KomaMRIPlots.PlotlyBase.to_html(seq_buffer, p_seq.plot)
+      KomaMRIPlots.PlotlyBase.to_html(kspace_buffer, p_kspace.plot)
+
+      seq_html = String(take!(seq_buffer))
+      kspace_html = String(take!(kspace_buffer))
+
+      result = Dict(
+          "seq_html" => seq_html,
+          "kspace_html" => kspace_html
+      )
+
+      return HTTP.Response(200,body=JSON3.write(result))
+   catch e
+      println(e)
+      return HTTP.Response(500,body=JSON3.write(string(e)))
+   end
+end
+
+## SELECT AND PLOT PHANTOM
+@swagger """
+/plot_phantom:
+   post:
+      tags:
+      - plot
+      summary: Initialize and plot the selected phantom for the user
+      description: >
+         This endpoint is called from the frontend every time the user changes the "Phantom" field in the interface.
+         It initializes the user's phantom in the backend according to the selected value and returns an HTML response with an interactive plot of the selected phantom.
+         The plot corresponds to the selected map (e.g., PD, T1, T2, Δw) and is sized according to the provided width and height.
+         The user must be authenticated (requires Authorization header with JWT).
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  properties:
+                     phantom:
+                        type: string
+                        description: Name of the phantom to initialize (e.g., "brain2D", "aorta3D", etc.)
+                     map:
+                        type: string
+                        description: Map to plot ("PD", "T1", "T2", "dw", etc.)
+                     width:
+                        type: integer
+                        description: Plot width in pixels
+                     height:
+                        type: integer
+                        description: Plot height in pixels
+               example:
+                  phantom: "brain2D"
+                  map: "PD"
+                  width: 800
+                  height: 600
+      responses: 
+         '200':
+            description: Interactive HTML plot of the selected phantom
+            content:
+              text/html:
+                schema:
+                  format: html
+         '400':
+            description: Invalid input
+         '401':
+            description: Unauthorized (missing or invalid JWT)
+         '500':
+            description: Internal server error
+"""
+@post "/plot_phantom" function(req::HTTP.Request)
+   try
+      input_data = json(req)
+      phantom_string = input_data["phantom"]
+      map_str = input_data["map"]
+      map = map_str == "PD" ? :ρ  : 
+            map_str == "dw" ? :Δw : 
+            map_str == "T1" ? :T1 : 
+            map_str == "T2" ? :T2 : map_str
+      jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
+      uname = claims(jwt2)["username"]
+
+      if !haskey(ACTIVE_SESSIONS, uname) # Check if the user has already an active session
+         assign_process(uname) # Assign a new Julia process to the user
+      end
+      pid = ACTIVE_SESSIONS[uname]
+
+      phantom_path = "phantoms/$phantom_string/$phantom_string.phantom"
+      obj = read_phantom(phantom_path)
+      obj.Δw .= 0
+      PHANTOMS[uname] = obj
+
+      width  = json(req)["width"]  - 15
+      height = json(req)["height"] - 15
+      time_samples = obj.name == "Aorta"         ? 100 : 
+                     obj.name == "Flow Cylinder" ? 50  : 2;
+      ss           = obj.name == "Aorta"         ? 100 : 
+                     obj.name == "Flow Cylinder" ? 100 : 1;
+
+      p = @spawnat pid plot_phantom_map(PHANTOMS[uname][1:ss:end], map; darkmode=true, width=width, height=height, time_samples=time_samples)
       html_buffer = IOBuffer()
-      KomaMRIPlots.PlotlyBase.to_html(html_buffer, p.plot)
+      KomaMRIPlots.PlotlyBase.to_html(html_buffer, fetch(p).plot)
       return HTTP.Response(200,body=take!(html_buffer))
    catch e
       return HTTP.Response(500,body=JSON3.write(e))
@@ -918,317 +990,880 @@ end
 
 # --------------------- ADMIN ENDPOINTS ---------------------
 
+@swagger """
+/admin:
+   get:
+      tags:
+      - admin
+      summary: Get admin panel page
+      description: Returns the administration panel HTML page for managing users, sequences, and results.
+      responses:
+         '200':
+            description: Admin panel HTML page
+            content:
+              text/html:
+                schema:
+                  format: html
+         '303':
+            description: Redirect to login - not authenticated
+         '403':
+            description: Access denied - admin permissions required
+         '500':
+            description: Internal server error
+"""
 @get "/admin" function(req::HTTP.Request)
-    println("⚠️ Recibida petición a /admin")
-    
-    is_admin_user, username = check_admin(req)
-    
-    println("⚠️ check_admin resultado: is_admin=$is_admin_user, username=$username")
-    
-    if username === nothing
-        println("⚠️ Usuario no autenticado, redirigiendo a login")
-        return HTTP.Response(303, ["Location" => "/login"])
-    end
-    
-    if !is_admin_user
-        println("⚠️ Usuario $username no es administrador, acceso denegado")
-        return HTTP.Response(403, ["Content-Type" => "text/html"],
-            """
-            <html>
-            <head><title>Acceso Denegado</title></head>
-            <body>
-                <h1>Acceso Denegado</h1>
-                <p>No tienes permisos de administrador para acceder a esta página.</p>
-                <p><a href="/app">Volver a la aplicación</a></p>
-            </body>
-            </html>
-            """)
-    end
-    
-    println("⚠️ Usuario $username es administrador, mostrando panel")
-    
-    # Verificar si el archivo existe
-    admin_html_path = string(dynamic_files_path, "/admin.html")
-    if isfile(admin_html_path)
-        return HTTP.Response(200, ["Content-Type" => "text/html"], 
-                            read(admin_html_path, String))
-    else
-        # Solución de respaldo - generar HTML directamente
-        println("⚠️ Archivo admin.html no encontrado, generando respuesta HTML directa")
-        admin_html = """
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Panel de Administración - MRSeqStudio</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
-                .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                h1 { color: #333; }
-                .alert { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-                .btn { display: inline-block; padding: 8px 16px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; margin-right: 10px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Panel de Administración</h1>
-                <div class="alert">
-                    Nota: Esta es una versión simplificada del panel. El archivo admin.html no se encontró en la compilación.
-                </div>
-                
-                <div>
-                    <a href="/app" class="btn">Volver a la App</a>
-                    <a href="/logout" class="btn">Cerrar Sesión</a>
-                </div>
-                
-                <div id="content" style="margin-top: 20px;">
-                    <p>Cargando datos de usuarios...</p>
-                </div>
-            </div>
-            
-            <script>
-                // Cargar datos de usuarios
-                fetch('/api/admin/users')
-                    .then(response => response.json())
-                    .then(data => {
-                        const content = document.getElementById('content');
-                        content.innerHTML = '<h2>Usuarios en el sistema:</h2>';
-                        
-                        const list = document.createElement('ul');
-                        data.forEach(user => {
-                            const item = document.createElement('li');
-                            item.textContent = user.username + ' (' + user.email + ') - Admin: ' + 
-                                              (user.is_admin ? 'Sí' : 'No') + ', Premium: ' + 
-                                              (user.is_premium ? 'Sí' : 'No');
-                            list.appendChild(item);
-                        });
-                        
-                        content.appendChild(list);
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        document.getElementById('content').innerHTML = '<p>Error al cargar usuarios</p>';
-                    });
-            </script>
-        </body>
-        </html>
-        """
-        
-        return HTTP.Response(200, ["Content-Type" => "text/html"], admin_html)
-    end
+   println("⚠️ Received request to /admin")
+   return render_html(dynamic_files_path * "/admin.html")
 end
 
+@swagger """
+/api/admin/users:
+   get:
+      tags:
+      - admin
+      summary: Get all users
+      description: Returns a list of all users in the system with their details and permissions.
+      responses:
+         '200':
+            description: List of all users
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      email:
+                        type: string
+                      is_premium:
+                        type: boolean
+                      is_admin:
+                        type: boolean
+                      gpu_access:
+                        type: boolean
+                      max_daily_sequences:
+                        type: integer
+                      storage_quota_mb:
+                        type: number
+                      created_at:
+                        type: string
+                        format: date-time
+         '403':
+            description: Access denied - admin permissions required
+         '500':
+            description: Internal server error
+"""
 @get "/api/admin/users" function(req::HTTP.Request)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return get_all_users()
+   return get_all_users()
 end
 
+@swagger """
+/api/admin/sequences:
+   get:
+      tags:
+      - admin
+      summary: Get all sequences
+      description: Returns a list of all sequences created by users in the system.
+      responses:
+         '200':
+            description: List of all sequences
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      sequence_id:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      created_at:
+                        type: string
+                        format: date-time
+         '403':
+            description: Access denied - admin permissions required
+         '500':
+            description: Internal server error
+"""
 @get "/api/admin/sequences" function(req::HTTP.Request)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return get_all_sequences()
+   return get_all_sequences()
 end
 
+@swagger """
+/api/admin/sequences/{userId}:
+   get:
+      tags:
+      - admin
+      summary: Get sequences for a specific user
+      description: Returns all sequences created by a specific user.
+      parameters:
+         - in: path
+           name: userId
+           required: true
+           schema:
+              type: integer
+           description: The user ID
+      responses:
+         '200':
+            description: List of sequences for the user
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      sequence_id:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      created_at:
+                        type: string
+                        format: date-time
+         '403':
+            description: Access denied - admin permissions required
+         '404':
+            description: User not found
+         '500':
+            description: Internal server error
+"""
 @get "/api/admin/sequences/{userId}" function(req::HTTP.Request, userId)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return get_user_sequences(parse(Int, userId))
+   return get_user_sequences(parse(Int, userId))
 end
 
+@swagger """
+/api/admin/results/{resultId}:
+   get:
+      tags:
+      - admin
+      summary: Get result details
+      description: Returns detailed information about a specific simulation result.
+      parameters:
+         - in: path
+           name: resultId
+           required: true
+           schema:
+              type: integer
+           description: The result ID
+      responses:
+         '200':
+            description: Result details
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    username:
+                      type: string
+                    sequence_id:
+                      type: string
+                    file_path:
+                      type: string
+                    file_size_mb:
+                      type: number
+                    file_exists:
+                      type: boolean
+                    created_at:
+                      type: string
+                      format: date-time
+         '403':
+            description: Access denied - admin permissions required
+         '404':
+            description: Result not found
+         '500':
+            description: Internal server error
+"""
 @get "/api/admin/results/{resultId}" function(req::HTTP.Request, resultId)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return get_result_details(parse(Int, resultId))
+   return get_result_details(parse(Int, resultId))
 end
 
+@swagger """
+/api/admin/results/{resultId}:
+   delete:
+      tags:
+      - admin
+      summary: Delete a simulation result
+      description: Deletes a specific simulation result and its associated file.
+      parameters:
+         - in: path
+           name: resultId
+           required: true
+           schema:
+              type: integer
+           description: The result ID to delete
+      responses:
+         '200':
+            description: Result deleted successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+         '403':
+            description: Access denied - admin permissions required
+         '404':
+            description: Result not found
+         '500':
+            description: Internal server error
+"""
 @delete "/api/admin/results/{resultId}" function(req::HTTP.Request, resultId)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return delete_result(parse(Int, resultId), req)
+   jwt1 = get_jwt_from_cookie(HTTP.header(req, "Cookie"))
+   return delete_result(parse(Int, resultId), claims(jwt1)["username"])
 end
 
+@swagger """
+/api/admin/stats/sequences:
+   get:
+      tags:
+      - admin
+      summary: Get sequence usage statistics
+      description: Returns statistics about sequence usage including daily stats and top users.
+      responses:
+         '200':
+            description: Sequence usage statistics
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    daily_stats:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          date:
+                            type: string
+                            format: date
+                          total_sequences:
+                            type: integer
+                    top_users:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          username:
+                            type: string
+                          total_sequences:
+                            type: integer
+         '403':
+            description: Access denied - admin permissions required
+         '500':
+            description: Internal server error
+"""
 @get "/api/admin/stats/sequences" function(req::HTTP.Request)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return get_sequence_usage_stats()
+   return get_sequence_usage_stats()
 end
 
+@swagger """
+/api/admin/users/{userId}/sequences:
+   get:
+      tags:
+      - admin
+      summary: Get sequence usage for a specific user
+      description: Returns sequence usage statistics for a specific user.
+      parameters:
+         - in: path
+           name: userId
+           required: true
+           schema:
+              type: integer
+           description: The user ID
+      responses:
+         '200':
+            description: User sequence usage statistics
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      sequences_used:
+                        type: integer
+         '403':
+            description: Access denied - admin permissions required
+         '404':
+            description: User not found
+         '500':
+            description: Internal server error
+"""
 @get "/api/admin/users/{userId}/sequences" function(req::HTTP.Request, userId)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return get_user_sequence_usage(parse(Int, userId))
+   return get_user_sequence_usage(parse(Int, userId))
 end
 
+@swagger """
+/api/admin/users:
+   post:
+      tags:
+      - admin
+      summary: Create a new user
+      description: Creates a new user account with the specified details and permissions.
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  required:
+                  - username
+                  - password
+                  - email
+                  properties:
+                     username:
+                        type: string
+                        description: Unique username for the user
+                     password:
+                        type: string
+                        description: User password
+                     email:
+                        type: string
+                        format: email
+                        description: User email address
+                     is_premium:
+                        type: boolean
+                        default: false
+                        description: Premium user status
+                     is_admin:
+                        type: boolean
+                        default: false
+                        description: Administrator status
+                     gpu_access:
+                        type: boolean
+                        default: false
+                        description: GPU access permission
+                     max_daily_sequences:
+                        type: integer
+                        default: 10
+                        description: Maximum daily sequences allowed
+                     storage_quota_mb:
+                        type: number
+                        default: 0.5
+                        description: Storage quota in MB
+      responses:
+         '201':
+            description: User created successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    username:
+                      type: string
+                    message:
+                      type: string
+         '400':
+            description: Bad request - missing required fields
+         '403':
+            description: Access denied - admin permissions required
+         '409':
+            description: Conflict - username or email already exists
+         '500':
+            description: Internal server error
+"""
 @post "/api/admin/users" function(req::HTTP.Request)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    # Obtener JSON y normalizar a strings
-    json_data = json(req)
-    println("JSON recibido en /api/admin/users: ", json_data)
-    
-    # Convertir a Dict y normalizar claves a strings
-    input_data = normalize_keys(json_data)
-    println("Campos disponibles normalizados: ", keys(input_data))
-    
-    # Verificar campos obligatorios con strings
-    required_fields = ["username", "password", "email"]
-    for field in required_fields
-        if !haskey(input_data, field)
-            println("❌ Falta campo requerido: $field")
-            return HTTP.Response(400, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("error" => "Campo requerido faltante: $field")))
-        end
-    end
-    
-    # Crear usuario con los datos validados
-    try
-        return admin_create_user(input_data)
-    catch e
-        println("❌ Error al crear usuario: ", e)
-        return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error al crear usuario: $e")))
-    end
+   # Obtener JSON y normalizar a strings
+   json_data = json(req)
+   println("JSON recibido en /api/admin/users: ", json_data)
+   
+   # Convertir a Dict y normalizar claves a strings
+   input_data = normalize_keys(json_data)
+   println("Campos disponibles normalizados: ", keys(input_data))
+   
+   # Verificar campos obligatorios con strings
+   required_fields = ["username", "password", "email"]
+   for field in required_fields
+      if !haskey(input_data, field)
+         println("❌ Required field missing: $field")
+         return HTTP.Response(400, ["Content-Type" => "application/json"],
+               JSON3.write(Dict("error" => "Required field missing: $field")))
+      end
+   end
+   
+   # Crear usuario con los datos validados
+   try
+      return admin_create_user(input_data)
+   catch e
+      println("❌ Error creating user: ", e)
+      return HTTP.Response(500, ["Content-Type" => "application/json"],
+         JSON3.write(Dict("error" => "Error al crear usuario: $e")))
+   end
 end
 
+@swagger """
+/api/admin/users/{userId}:
+   put:
+      tags:
+      - admin
+      summary: Update user information
+      description: Updates the information of an existing user.
+      parameters:
+         - in: path
+           name: userId
+           required: true
+           schema:
+              type: integer
+           description: The user ID to update
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  properties:
+                     username:
+                        type: string
+                        description: Username (cannot be changed)
+                     email:
+                        type: string
+                        format: email
+                        description: User email address
+                     is_premium:
+                        type: boolean
+                        description: Premium user status
+                     is_admin:
+                        type: boolean
+                        description: Administrator status
+                     gpu_access:
+                        type: boolean
+                        description: GPU access permission
+                     max_daily_sequences:
+                        type: integer
+                        description: Maximum daily sequences allowed
+                     storage_quota_mb:
+                        type: number
+                        description: Storage quota in MB
+      responses:
+         '200':
+            description: User updated successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+         '400':
+            description: Bad request - invalid data
+         '403':
+            description: Access denied - admin permissions required
+         '404':
+            description: User not found
+         '500':
+            description: Internal server error
+"""
 @put "/api/admin/users/{userId}" function(req::HTTP.Request, userId)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    input_data = normalize_keys(json(req))
-    return update_user(parse(Int, userId), input_data)
+   input_data = normalize_keys(json(req))
+   return update_user(parse(Int, userId), input_data)
 end
 
+@swagger """
+/api/admin/users/{userId}/reset-password:
+   post:
+      tags:
+      - admin
+      summary: Reset user password
+      description: Resets the password for a specific user.
+      parameters:
+         - in: path
+           name: userId
+           required: true
+           schema:
+              type: integer
+           description: The user ID
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  required:
+                  - new_password
+                  properties:
+                     new_password:
+                        type: string
+                        description: The new password for the user
+      responses:
+         '200':
+            description: Password reset successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+         '400':
+            description: Bad request - missing new password
+         '403':
+            description: Access denied - admin permissions required
+         '404':
+            description: User not found
+         '500':
+            description: Internal server error
+"""
 @post "/api/admin/users/{userId}/reset-password" function(req::HTTP.Request, userId)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    input_data = normalize_keys(json(req))
-    if !haskey(input_data, "new_password")
-        return HTTP.Response(400, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Falta la nueva contraseña")))
-    end
-    
-    return reset_user_password(parse(Int, userId), input_data["new_password"])
+   input_data = normalize_keys(json(req))
+   if !haskey(input_data, "new_password")
+      return HTTP.Response(400, ["Content-Type" => "application/json"],
+         JSON3.write(Dict("error" => "Missing new password")))
+   end
+   
+   return reset_user_password(parse(Int, userId), input_data["new_password"])
 end
 
+@swagger """
+/api/admin/users/{userId}:
+   delete:
+      tags:
+      - admin
+      summary: Delete a user
+      description: Deletes a user account and all associated data.
+      parameters:
+         - in: path
+           name: userId
+           required: true
+           schema:
+              type: integer
+           description: The user ID to delete
+      responses:
+         '200':
+            description: User deleted successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+         '403':
+            description: Access denied - admin permissions required
+         '404':
+            description: User not found
+         '409':
+            description: Conflict - cannot delete administrator user
+         '500':
+            description: Internal server error
+"""
 @delete "/api/admin/users/{userId}" function(req::HTTP.Request, userId)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return delete_user(parse(Int, userId))
+   return delete_user(parse(Int, userId))
 end
 
+@swagger """
+/api/admin/results:
+   get:
+      tags:
+      - admin
+      summary: Get all simulation results
+      description: Returns a list of all simulation results in the system.
+      responses:
+         '200':
+            description: List of all simulation results
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      sequence_id:
+                        type: string
+                      file_path:
+                        type: string
+                      file_size_mb:
+                        type: number
+                      created_at:
+                        type: string
+                        format: date-time
+         '403':
+            description: Access denied - admin permissions required
+         '500':
+            description: Internal server error
+"""
 @get "/api/admin/results" function(req::HTTP.Request)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return get_all_results()
+   return get_all_results()
 end
 
+@swagger """
+/api/admin/sequence-usage:
+   get:
+      tags:
+      - admin
+      summary: Get all sequence usage data
+      description: Returns a list of all sequence usage records in the system.
+      responses:
+         '200':
+            description: List of all sequence usage records
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      sequences_used:
+                        type: integer
+         '403':
+            description: Access denied - admin permissions required
+         '500':
+            description: Internal server error
+"""
 @get "/api/admin/sequence-usage" function(req::HTTP.Request)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return get_all_sequence_usage()
+   return get_all_sequence_usage()
 end
 
+@swagger """
+/api/admin/sequence-usage/{usageId}:
+   get:
+      tags:
+      - admin
+      summary: Get sequence usage by ID
+      description: Returns a specific sequence usage record by its ID.
+      parameters:
+         - in: path
+           name: usageId
+           required: true
+           schema:
+              type: integer
+           description: The sequence usage ID
+      responses:
+         '200':
+            description: Sequence usage record
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    username:
+                      type: string
+                    date:
+                      type: string
+                      format: date
+                    sequences_used:
+                      type: integer
+         '403':
+            description: Access denied - admin permissions required
+         '404':
+            description: Sequence usage record not found
+         '500':
+            description: Internal server error
+"""
 @get "/api/admin/sequence-usage/{usageId}" function(req::HTTP.Request, usageId)
-    is_admin_user, _ = check_admin(req)
-    
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    return get_sequence_usage_by_id(parse(Int, usageId))
+   return get_sequence_usage_by_id(parse(Int, usageId))
 end
 
+@swagger """
+/api/admin/sequence-usage/{usageId}:
+   put:
+      tags:
+      - admin
+      summary: Update sequence usage record
+      description: Updates the sequence usage count for a specific record.
+      parameters:
+         - in: path
+           name: usageId
+           required: true
+           schema:
+              type: integer
+           description: The sequence usage ID to update
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  required:
+                  - sequences_used
+                  properties:
+                     sequences_used:
+                        type: integer
+                        description: The number of sequences used
+      responses:
+         '200':
+            description: Sequence usage updated successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+         '400':
+            description: Bad request - missing sequences_used field
+         '403':
+            description: Access denied - admin permissions required
+         '404':
+            description: Sequence usage record not found
+         '500':
+            description: Internal server error
+"""
 @put "/api/admin/sequence-usage/{usageId}" function(req::HTTP.Request, usageId)
-    is_admin_user, _ = check_admin(req)
+   input_data = normalize_keys(json(req))
     
-    if !is_admin_user
-        return HTTP.Response(403)
-    end
-    
-    input_data = normalize_keys(json(req))
-    
-    if !haskey(input_data, "sequences_used")
-        return HTTP.Response(400, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Falta el campo sequences_used")))
-    end
-    
-    return update_sequence_usage(parse(Int, usageId), input_data["sequences_used"])
+   if !haskey(input_data, "sequences_used")
+      return HTTP.Response(400, ["Content-Type" => "application/json"],
+         JSON3.write(Dict("error" => "Missing sequences_used field")))
+   end
+   
+   return update_sequence_usage(parse(Int, usageId), input_data["sequences_used"])
 end
 
-# Redirige /results a /results.html 
+# Redirect /results to /results.html 
 @get "/results" function(req::HTTP.Request)
-   return HTTP.Response(301, ["Location" => "/results.html"])
+   return render_html(dynamic_files_path * "/results.html")
 end
 
-# Endpoint para la API de resultados
+@swagger """
+/api/results:
+   get:
+      tags:
+      - results
+      summary: Get user's simulation results
+      description: Returns all simulation results for the authenticated user.
+      responses:
+         '200':
+            description: List of user's simulation results
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      sequence_id:
+                        type: string
+                      file_path:
+                        type: string
+                      file_size_mb:
+                        type: number
+                      created_at:
+                        type: string
+                        format: date-time
+         '401':
+            description: Not authenticated
+         '500':
+            description: Internal server error
+"""
+# Endpoint for the results API
 @get "/api/results" function(req)
    username = get_user_from_jwt(req)
    results = get_user_results(username)
    return HTTP.Response(200, ["Content-Type" => "application/json"], JSON3.write(results))
 end
 
+@swagger """
+/api/results/{id}/download:
+   get:
+      tags:
+      - results
+      summary: Download simulation result
+      description: Downloads a specific simulation result file for the authenticated user.
+      parameters:
+         - in: path
+           name: id
+           required: true
+           schema:
+              type: integer
+           description: The result ID to download
+      responses:
+         '200':
+            description: File download
+            content:
+              application/octet-stream:
+                schema:
+                  type: string
+                  format: binary
+         '401':
+            description: Not authenticated
+         '403':
+            description: Access denied - result belongs to another user
+         '404':
+            description: Result not found
+         '500':
+            description: Internal server error
+"""
 @get "/api/results/{id}/download" function(req, id)
-    println("buscando id usuario")
-    username = get_user_from_jwt(req)
-    println("Descarga solicitada: usuario=$username, id=$id")
-    return download_simulation_result(username, parse(Int, id))
+   println("searching for user id")
+   username = get_user_from_jwt(req)
+      println("Download requested: user=$username, id=$id")
+   return download_simulation_result(username, parse(Int, id))
 end
 
+@swagger """
+/api/results/{id}:
+   delete:
+      tags:
+      - results
+      summary: Delete simulation result
+      description: Deletes a specific simulation result for the authenticated user.
+      parameters:
+         - in: path
+           name: id
+           required: true
+           schema:
+              type: integer
+           description: The result ID to delete
+      responses:
+         '200':
+            description: Result deleted successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+         '401':
+            description: Not authenticated
+         '403':
+            description: Access denied - result belongs to another user
+         '404':
+            description: Result not found
+         '500':
+            description: Internal server error
+"""
 @delete "/api/results/{id}" function(req, id)
-    return delete_result(parse(Int, id), req)
+   return delete_result(parse(Int, id), claims(jwt1)["username"])
 end
 # ---------------------------------------------------------------------------
 
@@ -1241,9 +1876,3 @@ swagger_document = build(openApi)
 setschema(swagger_document)
 
 serve(host="0.0.0.0",port=8000, middleware=[AuthMiddleware])
-
-
-
-
-
-

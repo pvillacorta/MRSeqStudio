@@ -602,22 +602,22 @@
             setupTabs();
         });
         
-        // Configurar sistema de pestañas
+        // Configure tab system
         function setupTabs() {
             const tabs = document.querySelectorAll('.tab');
             
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
-                    // Desactivar todas las pestañas
+                    // Deactivate all tabs
                     tabs.forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
                     
-                    // Activar la pestaña seleccionada
+                    // Activate the selected tab
                     tab.classList.add('active');
                     const tabName = tab.dataset.tab;
                     document.getElementById(`${tabName}Tab`).classList.add('active');
                     
-                    // Cargar datos según la pestaña
+                    // Load data according to the tab
                     if (tabName === 'sequences' && results.length === 0) {
                         loadResults();
                         loadSequenceUsage();
@@ -633,16 +633,16 @@
             const subtabs = document.querySelectorAll('[data-subtab]');
             subtabs.forEach(tab => {
                 tab.addEventListener('click', () => {
-                    // Desactivar todas las pestañas
+                    // Deactivate all tabs
                     subtabs.forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.subtab-content').forEach(content => content.classList.remove('active'));
                     
-                    // Activar la pestaña seleccionada
+                    // Activate the selected tab
                     tab.classList.add('active');
                     const subtabName = tab.dataset.subtab;
                     document.getElementById(`${subtabName}Subtab`).classList.add('active');
                     
-                    // Cargar datos específicos
+                    // Load specific data
                     if (subtabName === 'sequences') {
                         loadSequences();
                     } else if (subtabName === 'results') {
@@ -775,7 +775,7 @@
                 tbody.appendChild(row);
             });
             
-            // Añadir event listeners a los botones
+            // Add event listeners to buttons
             document.querySelectorAll('.btn-edit').forEach(btn => {
                 btn.addEventListener('click', () => showEditUserModal(parseInt(btn.dataset.id)));
             });
@@ -808,7 +808,7 @@
                 tbody.appendChild(row);
             });
             
-            // Añadir eventos a los botones
+            // Add events to buttons
             document.querySelectorAll('.view-result').forEach(btn => {
                 btn.addEventListener('click', () => showResultDetails(btn.dataset.id));
             });
@@ -836,7 +836,7 @@
         function renderStats(data) {
             const statsContent = document.getElementById('statsContent');
             
-            // Crear visualización de estadísticas
+            // Create statistics visualization
             let html = `
                 <div class="form-row">
                     <div class="form-group">
@@ -851,7 +851,7 @@
                             <tbody>
             `;
             
-            // Añadir datos diarios
+            // Add daily data
             data.daily_stats.forEach(stat => {
                 html += `
                     <tr>
@@ -880,7 +880,7 @@
                             <tbody>
             `;
             
-            // Añadir datos de usuarios
+            // Add user data
             data.top_users.forEach(user => {
                 html += `
                     <tr>
@@ -986,7 +986,7 @@
                         </div>
                     `;
                     
-                    // Guardar el ID para el botón de eliminar
+                    // Save the ID for the delete button
                     document.getElementById('deleteResultBtn').dataset.id = data.id;
                     
                     // Mostrar modal
@@ -1020,7 +1020,7 @@
             const userId = document.getElementById("userId").value;
             const isEdit = userId !== "";
             
-            // Datos básicos del usuario
+            // Basic user data
             const userData = {
                 username: document.getElementById("username").value,
                 email: document.getElementById("email").value,
@@ -1031,7 +1031,7 @@
                 storage_quota_mb: parseFloat(document.getElementById("storageQuotaMB").value)
             };
             
-            // Incluir contraseña solo si está presente
+            // Include password only if present
             const password = document.getElementById("password").value;
             if (password) {
                 userData.password = password;
@@ -1101,7 +1101,7 @@
                         throw error;
                     });
             }
-            return response.json().catch(() => ({})); // Manejar respuestas vacías
+            return response.json().catch(() => ({})); // Handle empty responses
         }
         
         function handleError(error) {

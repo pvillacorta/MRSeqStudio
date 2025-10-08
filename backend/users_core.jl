@@ -96,29 +96,14 @@ Comprueba si un usuario tiene privilegios de administrador.
 # end
 
 """
-check_admin(req)
+check_admin(jwt1, jwt2)
 
 Verifica si el usuario que hace la petición es administrador.
 
 # Returns
-- `Tuple{Bool, Union{String, Nothing}}`: (es_admin, nombre_usuario)
+- `Bool`: true si el usuario es administrador, false en caso contrario
 """
-function check_admin(req)
-    # Intenta obtener el JWT de las cookies
-    cookie = HTTP.header(req, "Cookie")
-    jwt1 = get_jwt_from_cookie(cookie)
-    
-    # Si no hay JWT en las cookies, intenta obtenerlo del header de autorización
-    if jwt1 === nothing
-        auth_header = HTTP.header(req, "Authorization")
-        if auth_header !== ""
-            jwt1 = get_jwt_from_auth_header(auth_header)
-        else
-            println("→ No se encontró JWT en cookies ni en headers")
-            return false, nothing
-        end
-    end
-    
+function check_admin(jwt1, jwt2)
     try
         # Obtener usuario y estado de administrador del JWT
         username = claims(jwt1)["username"]
@@ -136,13 +121,13 @@ function check_admin(req)
             end
             
             println("Usuario: $username, Es admin: $is_admin_user")
-            return is_admin_user, username
+            return is_admin_user
         finally
             DBInterface.close!(conn)
         end
     catch e
         println("Error al verificar administrador: $e")
-        return false, nothing
+        return false
     end
 end
 

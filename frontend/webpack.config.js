@@ -57,7 +57,6 @@ module.exports = (env, argv) => {
                 patterns: [
                     { from: 'src/utils_private.js', to: '.' },
                     { from: 'src/assets', to: 'assets' },
-                    { from: 'node_modules/@itk-wasm/image-io/dist/pipelines/*.{js,wasm,wasm.zst}', to: 'pipelines/[name][ext]' },
                     
                     { from: 'src/admin.html', to: 'admin.html' },
                     { from: 'src/results.html', to: 'results.html' },
@@ -68,6 +67,8 @@ module.exports = (env, argv) => {
                     // { from: 'src/admin.css', to: 'admin.css' },
                     { from: 'src/results.css', to: 'results.css' },
                     // { from: 'src/sequences.css', to: 'sequences.css'}
+                    { from: 'src/favicon.ico', to: '.' },
+                    { from: 'node_modules/@itk-wasm/image-io/dist/pipelines/*.{js,wasm,wasm.zst}', to: 'pipelines/[name][ext]' }
                 ],
             }),
         ],

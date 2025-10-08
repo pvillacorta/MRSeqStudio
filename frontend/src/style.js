@@ -15,11 +15,11 @@ function openScreen(screenId) {
     for (var i = 0; i < buttons.length; i++) {
         buttons[i].classList.remove("tab-active");
     }
-    // Agrega la clase 'tab-active' al botón/tab activo
+    // Add the 'tab-active' class to the active button/tab
     document.getElementById("btn-" + screenId).classList.add("tab-active");
 }
 
-// Función para manejar el cambio de tamaño de pantalla
+// Function to handle screen size change
 function handleResize() {
     if (window.innerWidth > 1500 && window.innerHeight > 680) {
         // Si es escritorio, mostrar los divs
@@ -44,7 +44,7 @@ function initTabs(){
     }
 }
 
-// Manejar el cambio de tamaño de pantalla
+// Handle screen size change
 window.addEventListener("resize", handleResize);
 
 // Disable long-press text selection inside wasm View
@@ -73,11 +73,11 @@ toggleButton.addEventListener("click", function (event) {
         userMenu.style.background = "gray";
     }
     userClicked = !userClicked;
-    event.stopPropagation(); // Evita que el click se propague al document
+    event.stopPropagation(); // Prevents the click from propagating to the document
 });
 
 document.addEventListener("click", function (event) {
-    // Oculta el menú si se hace clic fuera del botón o del menú
+    // Hide the menu if clicking outside the button or menu
     if (!dropdownMenu.contains(event.target) && !toggleButton.contains(event.target)) {
         dropdownMenu.style.display = "none";
         userMenu.style.background = "gray";

@@ -1,16 +1,16 @@
 """
 get_all_users()
 
-Obtener todos los usuarios del sistema con sus privilegios.
+Get all users from the system with their privileges.
 
 # Returns
-- `HTTP.Response`: Lista de usuarios en formato JSON
+- `HTTP.Response`: Users list in JSON format
 """
 
 function get_all_users()
     conn = get_db_connection()
     try
-        # Consulta con JOIN para obtener usuarios con todos sus privilegios
+        # Query with JOIN to get users with all their privileges
         query = """
         SELECT u.id, u.username, u.email, u.password_hash, u.is_premium, u.is_admin, u.created_at, u.updated_at,
             p.storage_quota_mb, p.gpu_access, p.max_daily_sequences
@@ -23,7 +23,7 @@ function get_all_users()
         
         users = []
         for row in result
-            # Crear objeto de usuario con todos sus privilegios
+            # Create user object with all their privileges
             user = Dict(
                 "id" => row[1],
                 "username" => row[2],
@@ -44,7 +44,7 @@ function get_all_users()
     catch e
         println("❌ Error fetching users: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -53,10 +53,10 @@ end
 """
 get_user_sequence_usage(user_id)
 
-Obtiene el uso de secuencias para un usuario específico.
+Get the sequence usage for a specific user.
 
 # Returns
-- `HTTP.Response`: Datos de uso en formato JSON
+- `HTTP.Response`: Data usage in JSON format
 """
 function get_user_sequence_usage(user_id)
     conn = get_db_connection()
@@ -86,7 +86,7 @@ function get_user_sequence_usage(user_id)
     catch e
         println("❌ Error fetching sequence usage: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -95,18 +95,18 @@ end
 """
 admin_create_user(user_data)
 
-Crear un nuevo usuario desde el panel de administrador.
+Create a new user from the admin panel.
 
 # Arguments
-- `user_data::Dict`: Datos del nuevo usuario
+- `user_data::Dict`: Data of the new user
 
 # Returns
-- `HTTP.Response`: Código de respuesta HTTP
+- `HTTP.Response`: HTTP response code
 """
 
 
 function admin_create_user(user_data::Dict)
-    # Acceder a los datos usando exclusivamente strings
+    # Access the data using exclusively strings
     username = user_data["username"]
     password = user_data["password"]
     email = user_data["email"]
@@ -118,22 +118,22 @@ function admin_create_user(user_data::Dict)
     
     conn = get_db_connection()
     try
-        # Verificar si usuario/email existen
+        # Verify if user/email exists
         stmt = DBInterface.prepare(conn, "SELECT username, email FROM users WHERE username = ? OR email = ?")
         result = DBInterface.execute(stmt, [username, email])
         
         for row in result
             if row[1] == username
                 return HTTP.Response(409, ["Content-Type" => "application/json"],
-                    JSON3.write(Dict("error" => "El nombre de usuario ya existe")))
+                    JSON3.write(Dict("error" => "Username already exists")))
             end
             if row[2] == email
                 return HTTP.Response(409, ["Content-Type" => "application/json"],
-                    JSON3.write(Dict("error" => "El email ya existe")))
+                    JSON3.write(Dict("error" => "Email already exists")))
             end
         end
         
-        # Insertar nuevo usuario
+        # Insert new user
         password_hash = bytes2hex(sha256(password))
         stmt = DBInterface.prepare(conn, """
             INSERT INTO users (username, email, password_hash, is_premium, is_admin, created_at, updated_at) 
@@ -150,20 +150,20 @@ function admin_create_user(user_data::Dict)
             break
         end
         
-        # Configurar privilegios de almacenamiento incluyendo los nuevos campos
+        # Configure storage privileges including the new fields
         stmt = DBInterface.prepare(conn, """
             INSERT INTO user_privileges (user_id, storage_quota_mb, gpu_access, max_daily_sequences) 
             VALUES (?, ?, ?, ?)
         """)
         DBInterface.execute(stmt, [user_id, storage_quota_mb, gpu_access ? 1 : 0, max_daily_sequences])
         
-        println("✅ Usuario añadido por admin: $username (Premium: $is_premium, Admin: $is_admin)")
+        println("✅ User added by admin: $username (Premium: $is_premium, Admin: $is_admin)")
         return HTTP.Response(201)
         
     catch e
         println("❌ Error creating user: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor: $e")))
+            JSON3.write(Dict("error" => "Internal server error: $e")))
     finally
         DBInterface.close!(conn)
     end
@@ -172,21 +172,21 @@ end
 """
 update_user(id, user_data)
 
-Actualizar datos de un usuario desde el panel de administrador.
+Update user data from the admin panel.
 
 # Arguments
-- `id::Int`: ID del usuario a actualizar
-- `user_data::Dict`: Datos a actualizar
+- `id::Int`: ID of the user to update
+- `user_data::Dict`: Data to update
 
 # Returns
-- `HTTP.Response`: Código de respuesta HTTP
+- `HTTP.Response`: HTTP response code
 """
-# Modificar la función para usar exclusivamente strings
+# Modify the function to use exclusively strings
 
 function update_user(id::Int, user_data::Dict)
     conn = get_db_connection()
     try
-        # Verificar que el usuario existe
+        # Verify that the user exists
         stmt = DBInterface.prepare(conn, "SELECT id FROM users WHERE id = ?")
         result = DBInterface.execute(stmt, [id])
         found = false
@@ -197,10 +197,10 @@ function update_user(id::Int, user_data::Dict)
         
         if !found
             return HTTP.Response(404, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("error" => "Usuario no encontrado")))
+                JSON3.write(Dict("error" => "User not found")))
         end
         
-        # Actualizar tabla users - usar siempre strings para acceder
+        # Update users table - use exclusively strings to access
         updates = String[]
         params = []
         
@@ -224,7 +224,7 @@ function update_user(id::Int, user_data::Dict)
             push!(params, bytes2hex(sha256(user_data["password"])))
         end
         
-        # Añadir timestamp de actualización
+        # Add update timestamp
         push!(updates, "updated_at = NOW()")
         
         if length(updates) > 0
@@ -234,7 +234,7 @@ function update_user(id::Int, user_data::Dict)
             DBInterface.execute(stmt, params)
         end
         
-        # Verificar si ya existen privilegios para este usuario
+        # Verify if there are already privileges for this user
         stmt = DBInterface.prepare(conn, "SELECT user_id FROM user_privileges WHERE user_id = ?")
         result = DBInterface.execute(stmt, [id])
         
@@ -244,7 +244,7 @@ function update_user(id::Int, user_data::Dict)
             break
         end
         
-        # Actualizar privilegios
+        # Update privileges
         privilege_updates = []
         privilege_params = []
         
@@ -265,13 +265,13 @@ function update_user(id::Int, user_data::Dict)
         
         if length(privilege_updates) > 0
             if privileges_exist
-                # Actualizar privilegios existentes
+                # Update existing privileges
                 privilege_query = "UPDATE user_privileges SET " * join(privilege_updates, ", ") * " WHERE user_id = ?"
                 push!(privilege_params, id)
                 stmt = DBInterface.prepare(conn, privilege_query)
                 DBInterface.execute(stmt, privilege_params)
             else
-                # Crear nuevos privilegios con valores predeterminados para campos no especificados
+                # Create new privileges with default values for unspecified fields
                 default_storage = haskey(user_data, "storage_quota_mb") ? user_data["storage_quota_mb"] : 0.5
                 default_gpu = haskey(user_data, "gpu_access") ? (user_data["gpu_access"] ? 1 : 0) : 0
                 default_max_seq = haskey(user_data, "max_daily_sequences") ? user_data["max_daily_sequences"] : 10
@@ -281,13 +281,13 @@ function update_user(id::Int, user_data::Dict)
             end
         end
         
-        println("✅ Usuario actualizado: ID $id")
+        println("✅ User updated: ID $id")
         return HTTP.Response(200)
         
     catch e
         println("❌ Error updating user: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor: $e")))
+            JSON3.write(Dict("error" => "Internal server error: $e")))
     finally
         DBInterface.close!(conn)
     end
@@ -296,18 +296,18 @@ end
 """
 delete_user(id)
 
-Eliminar un usuario del sistema.
+Delete a user from the system.
 
 # Arguments
-- `id::Int`: ID del usuario a eliminar
+- `id::Int`: ID of the user to delete
 
 # Returns
-- `HTTP.Response`: Código de respuesta HTTP
+- `HTTP.Response`: HTTP response code
 """
 function delete_user(id::Int)
     conn = get_db_connection()
     try
-        # Verificar que el usuario existe y no es administrador
+        # Verify that the user exists and is not an admin
         stmt = DBInterface.prepare(conn, "SELECT username, is_admin FROM users WHERE id = ?")
         result = DBInterface.execute(stmt, [id])
         
@@ -322,48 +322,48 @@ function delete_user(id::Int)
         
         if username === nothing
             return HTTP.Response(404, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("error" => "Usuario no encontrado")))
+                JSON3.write(Dict("error" => "User not found")))
         end
         
         if is_admin_user
             return HTTP.Response(403, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("error" => "No se puede eliminar una cuenta de administrador")))
+                JSON3.write(Dict("error" => "Cannot delete an admin account")))
         end
         
-        # Eliminar usuario y sus datos relacionados
+        # Delete user and related data
         DBInterface.execute(conn, "START TRANSACTION")
         
-        # Eliminar privilegios
+        # Delete privileges
         stmt = DBInterface.prepare(conn, "DELETE FROM user_privileges WHERE user_id = ?")
         DBInterface.execute(stmt, [id])
         
-        # Eliminar uso de secuencias
+        # Delete sequence usage
         stmt = DBInterface.prepare(conn, "DELETE FROM daily_sequence_usage WHERE user_id = ?")
         DBInterface.execute(stmt, [id])
         
-        # Eliminar resultados
+        # Delete results
         stmt = DBInterface.prepare(conn, "DELETE FROM results WHERE user_id = ?")
         DBInterface.execute(stmt, [id])
         
-        # Finalmente eliminar el usuario
+        # Finally delete the user
         stmt = DBInterface.prepare(conn, "DELETE FROM users WHERE id = ?")
         DBInterface.execute(stmt, [id])
         
         DBInterface.execute(conn, "COMMIT")
         
-        # Eliminar sesión si está activa
+        # Delete session if it is active
         if haskey(ACTIVE_SESSIONS, username)
             delete!(ACTIVE_SESSIONS, username)
         end
         
-        println("✅ Usuario eliminado: $username (ID: $id)")
+        println("✅ User deleted: $username (ID: $id)")
         return HTTP.Response(200)
         
     catch e
         DBInterface.execute(conn, "ROLLBACK")
         println("❌ Error deleting user: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -372,15 +372,15 @@ end
 """
 get_sequence_usage_stats()
 
-Obtiene estadísticas de uso de secuencias para todos los usuarios.
+Get sequence usage statistics for all users.
 
 # Returns
-- `HTTP.Response`: Estadísticas en formato JSON
+- `HTTP.Response`: Statistics in JSON format
 """
 function get_sequence_usage_stats()
     conn = get_db_connection()
     try
-        # Consulta para obtener estadísticas diarias agregadas
+        # Query to get daily aggregated statistics
         daily_query = """
         SELECT date, SUM(sequences_used) as total_sequences
         FROM daily_sequence_usage
@@ -389,7 +389,7 @@ function get_sequence_usage_stats()
         LIMIT 30
         """
         
-        # Consulta para obtener top usuarios
+        # Query to get top users
         user_query = """
         SELECT u.username, SUM(d.sequences_used) as total_sequences
         FROM daily_sequence_usage d
@@ -400,7 +400,7 @@ function get_sequence_usage_stats()
         LIMIT 10
         """
         
-        # Ejecutar consultas
+        # Execute queries
         stmt1 = DBInterface.prepare(conn, daily_query)
         daily_result = DBInterface.execute(stmt1)
         
@@ -435,7 +435,7 @@ function get_sequence_usage_stats()
     catch e
         println("❌ Error fetching sequence usage stats: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -444,19 +444,19 @@ end
 """
 reset_user_password(id, new_password)
 
-Cambia la contraseña de un usuario (operación de administrador).
+Change the password of a user (admin operation).
 
 # Arguments
-- `id::Int`: ID del usuario
-- `new_password::String`: Nueva contraseña
+- `id::Int`: ID of the user
+- `new_password::String`: New password
 
 # Returns
-- `HTTP.Response`: Código de respuesta HTTP
+- `HTTP.Response`: HTTP response code
 """
 function reset_user_password(id::Int, new_password::String)
     conn = get_db_connection()
     try
-        # Verificar que el usuario existe
+        # Verify that the user exists
         stmt = DBInterface.prepare(conn, "SELECT id FROM users WHERE id = ?")
         result = DBInterface.execute(stmt, [id])
         
@@ -468,21 +468,21 @@ function reset_user_password(id::Int, new_password::String)
         
         if !found
             return HTTP.Response(404, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("error" => "Usuario no encontrado")))
+                JSON3.write(Dict("error" => "User not found")))
         end
         
-        # Actualizar contraseña
+        # Update password
         password_hash = bytes2hex(sha256(new_password))
         stmt = DBInterface.prepare(conn, "UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?")
         DBInterface.execute(stmt, [password_hash, id])
         
-        println("✅ Contraseña reseteada para usuario ID: $id")
+        println("✅ Password reset for user ID: $id")
         return HTTP.Response(200)
         
     catch e
         println("❌ Error resetting password: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -490,10 +490,10 @@ end
 """
 get_all_sequences()
 
-Obtiene todas las secuencias registradas.
+Get all registered sequences.
 
 # Returns
-- `HTTP.Response`: Lista de secuencias en formato JSON
+- `HTTP.Response`: List of sequences in JSON format
 """
 function get_all_sequences()
     conn = get_db_connection()
@@ -523,9 +523,9 @@ function get_all_sequences()
         return HTTP.Response(200, ["Content-Type" => "application/json"],
             JSON3.write(sequences))
     catch e
-        println("❌ Error obteniendo secuencias: ", e)
+        println("❌ Error getting sequences: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -534,10 +534,10 @@ end
 """
 get_user_sequences(user_id)
 
-Obtiene las secuencias registradas para un usuario específico.
+Get the sequences registered for a specific user.
 
 # Returns
-- `HTTP.Response`: Lista de secuencias del usuario en formato JSON
+- `HTTP.Response`: List of sequences of the user in JSON format
 """
 function get_user_sequences(user_id::Int)
     conn = get_db_connection()
@@ -567,9 +567,9 @@ function get_user_sequences(user_id::Int)
         return HTTP.Response(200, ["Content-Type" => "application/json"],
             JSON3.write(sequences))
     catch e
-        println("❌ Error obteniendo secuencias del usuario: ", e)
+        println("❌ Error getting sequences of the user: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -578,10 +578,10 @@ end
 """
 get_result_details(result_id)
 
-Obtiene los detalles de un resultado específico.
+Get the details of a specific result.
 
 # Returns
-- `HTTP.Response`: Detalles del resultado en formato JSON
+- `HTTP.Response`: Details of the result in JSON format
 """
 function get_result_details(result_id::Int)
     conn = get_db_connection()
@@ -608,7 +608,7 @@ function get_result_details(result_id::Int)
                 "created_at" => string(row[7])
             )
             
-            # Verificar si el archivo existe
+            # Verify if the file exists
             if isfile(row[5])
                 result_data["file_exists"] = true
             else
@@ -620,11 +620,11 @@ function get_result_details(result_id::Int)
         end
         
         return HTTP.Response(404, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Resultado no encontrado")))
+            JSON3.write(Dict("error" => "Result not found")))
     catch e
-        println("❌ Error obteniendo detalles del resultado: ", e)
+        println("❌ Error getting details of the result: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -633,14 +633,12 @@ end
 """
 delete_result(result_id)
 
-Elimina un resultado y su archivo asociado.
+Delete a result and its associated file.
 
 # Returns
-- `HTTP.Response`: Confirmación de la eliminación
+- `HTTP.Response`: Confirmation of the deletion
 """
-function delete_result(result_id::Int, req)
-    # Obtener usuario y privilegios desde el JWT
-    is_admin, username = check_admin(req)
+function delete_result(result_id::Int, username::String)
     if username === nothing
         return HTTP.Response(401, ["Content-Type" => "application/json"],
             JSON3.write(Dict("error" => "No autenticado")))
@@ -648,7 +646,7 @@ function delete_result(result_id::Int, req)
 
     conn = get_db_connection()
     try
-        # Obtener información del resultado
+        # Get information of the result
         query = "SELECT user_id, file_path FROM results WHERE id = ?"
         stmt = DBInterface.prepare(conn, query)
         result = DBInterface.execute(stmt, [result_id])
@@ -663,10 +661,10 @@ function delete_result(result_id::Int, req)
         
         if owner_id === nothing
             return HTTP.Response(404, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("error" => "Resultado no encontrado")))
+                JSON3.write(Dict("error" => "Result not found")))
         end
 
-        # Obtener el id del usuario que solicita el borrado
+        # Get the id of the user that requests the deletion
         stmt = DBInterface.prepare(conn, "SELECT id FROM users WHERE username = ?")
         user_result = DBInterface.execute(stmt, [username])
         user_id = nothing
@@ -675,31 +673,31 @@ function delete_result(result_id::Int, req)
             break
         end
 
-        # Solo puede borrar si es el propietario o admin
+        # Only can delete if it is the owner or admin
         if user_id != owner_id && !is_admin
             return HTTP.Response(403, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("error" => "No tienes permiso para borrar este resultado")))
+                JSON3.write(Dict("error" => "You do not have permission to delete this result")))
         end
         
-        # Eliminar archivo si existe
+        # Delete file if it exists
         if isfile(file_path)
             try
                 rm(file_path)
             catch e
-                println("⚠️ No se pudo eliminar el archivo: $file_path. Error: $e")
+                println("⚠️ Could not delete the file: $file_path. Error: $e")
             end
         end
         
-        # Eliminar registro de la base de datos
+        # Delete record from the database
         stmt = DBInterface.prepare(conn, "DELETE FROM results WHERE id = ?")
         DBInterface.execute(stmt, [result_id])
         
         return HTTP.Response(200, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("message" => "Resultado eliminado correctamente")))
+            JSON3.write(Dict("message" => "Result deleted correctly")))
     catch e
-        println("❌ Error eliminando resultado: ", e)
+        println("❌ Error deleting result: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -708,10 +706,10 @@ end
 """
 get_all_sequence_usage()
 
-Obtiene todas las secuencias registradas.
+Get all registered sequences.
 
 # Returns
-- `HTTP.Response`: Lista de uso de secuencias en formato JSON
+- `HTTP.Response`: List of sequence usage in JSON format
 """
 function get_all_sequence_usage()
     conn = get_db_connection()
@@ -741,9 +739,9 @@ function get_all_sequence_usage()
         return HTTP.Response(200, ["Content-Type" => "application/json"],
             JSON3.write(usage_data))
     catch e
-        println("❌ Error obteniendo datos de uso: ", e)
+        println("❌ Error getting usage data: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -752,10 +750,10 @@ end
 """
 get_sequence_usage_by_id(usage_id)
 
-Obtiene un registro específico de uso de secuencias.
+Get a specific sequence usage record.
 
 # Returns
-- `HTTP.Response`: Datos del registro en formato JSON
+- `HTTP.Response`: Data of the record in JSON format
 """
 function get_sequence_usage_by_id(usage_id::Int)
     conn = get_db_connection()
@@ -784,11 +782,11 @@ function get_sequence_usage_by_id(usage_id::Int)
         end
         
         return HTTP.Response(404, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Registro no encontrado")))
+            JSON3.write(Dict("error" => "Record not found")))
     catch e
-        println("❌ Error obteniendo registro de uso: ", e)
+        println("❌ Error getting usage record: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -797,15 +795,15 @@ end
 """
 update_sequence_usage(usage_id, sequences_used)
 
-Actualiza el número de secuencias usadas en un registro.
+Update the number of sequences used in a record.
 
 # Returns
-- `HTTP.Response`: Respuesta HTTP
+- `HTTP.Response`: HTTP response code
 """
 function update_sequence_usage(usage_id::Int, sequences_used::Int)
     conn = get_db_connection()
     try
-        # Verificar si el registro existe
+        # Verify if the record exists
         stmt = DBInterface.prepare(conn, "SELECT id FROM daily_sequence_usage WHERE id = ?")
         result = DBInterface.execute(stmt, [usage_id])
         
@@ -817,18 +815,18 @@ function update_sequence_usage(usage_id::Int, sequences_used::Int)
         
         if !found
             return HTTP.Response(404, ["Content-Type" => "application/json"],
-                JSON3.write(Dict("error" => "Registro no encontrado")))
+                JSON3.write(Dict("error" => "Record not found")))
         end
         
-        # Actualizar registro
+        # Update record
         stmt = DBInterface.prepare(conn, "UPDATE daily_sequence_usage SET sequences_used = ? WHERE id = ?")
         DBInterface.execute(stmt, [sequences_used, usage_id])
         
         return HTTP.Response(200)
     catch e
-        println("❌ Error actualizando uso de secuencia: ", e)
+        println("❌ Error updating sequence usage: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
@@ -836,10 +834,10 @@ end
 """
 get_all_results()
 
-Obtiene todos los resultados de simulaciones registrados.
+Get all registered simulation results.
 
 # Returns
-- `HTTP.Response`: Lista de resultados en formato JSON
+- `HTTP.Response`: List of results in JSON format
 """
 function get_all_results()
     conn = get_db_connection()
@@ -874,9 +872,9 @@ function get_all_results()
         return HTTP.Response(200, ["Content-Type" => "application/json"],
             JSON3.write(results_data))
     catch e
-        println("❌ Error obteniendo resultados: ", e)
+        println("❌ Error getting results: ", e)
         return HTTP.Response(500, ["Content-Type" => "application/json"],
-            JSON3.write(Dict("error" => "Error interno del servidor")))
+            JSON3.write(Dict("error" => "Internal server error")))
     finally
         DBInterface.close!(conn)
     end
