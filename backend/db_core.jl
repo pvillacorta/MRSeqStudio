@@ -1,23 +1,23 @@
 """
     get_db_connection()
 
-Establece una conexión con la base de datos utilizando la configuración 
-almacenada en el archivo externo db_config.toml
+Establishes a database connection using the configuration 
+stored in the external db_config.toml file
 """
 function get_db_connection()
-    # Ruta al archivo de configuración
+    # Path to the configuration file
     config_path = joinpath(@__DIR__, "db_config.toml")
     
-    # Verificar si el archivo existe
+    # Check if the file exists
     if !isfile(config_path)
-        error("Archivo de configuración no encontrado: $config_path")
+        error("Configuration file not found: $config_path")
     end
     
-    # Leer la configuración
+    # Read the configuration
     try
         db_config = TOML.parsefile(config_path)
         
-        # Establecer la conexión
+        # Establish the connection
         return DBInterface.connect(
             MySQL.Connection,
             db_config["host"],
@@ -27,6 +27,6 @@ function get_db_connection()
             port = db_config["port"]
         )
     catch e
-        error("Error al conectar a la base de datos: $e")
+        error("Error connecting to database: $e")
     end
 end
