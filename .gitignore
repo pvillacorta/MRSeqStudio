@@ -17,3 +17,4 @@ sequences
 *.nii.gz
 *.mat
 *.phantom
+mysql_data

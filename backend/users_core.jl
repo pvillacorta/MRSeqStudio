@@ -103,11 +103,8 @@ Verifica si el usuario que hace la petición es administrador.
 # Returns
 - `Bool`: true si el usuario es administrador, false en caso contrario
 """
-function check_admin(jwt1, jwt2)
+function check_admin(username)
     try
-        # Obtener usuario y estado de administrador del JWT
-        username = claims(jwt1)["username"]
-        
         # Consultar directamente en la base de datos (no confiar solo en el JWT)
         conn = get_db_connection()
         try

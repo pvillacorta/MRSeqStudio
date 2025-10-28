@@ -40,7 +40,7 @@ staticfiles(phantom_files_path, "/public")
 
 const PUBLIC_URLS = ["/login", "/login.js", "/login.js.map", "/register"]
 const PRIVATE_URLS = ["/simulate", "/recon", "/plot_sequence", "/plot_phantom"]
-const ADMIN_URLS = ["/admin", "/api/admin/users", "/api/admin/sequences", "/api/admin/sequences/{userId}", "/api/admin/results/{resultId}", "/api/admin/results/{resultId}", "/api/admin/stats/sequences", "/api/admin/users/{userId}/sequences"]
+const ADMIN_URLS = ["/admin", "/api/admin/users", "/api/admin/sequences", "/api/admin/sequences/{userId}", "/api/admin/results/{resultId}", "/api/admin/stats/sequences", "/api/admin/users/{userId}/sequences"]
 
 const AUTH_FILE  = "auth.txt"
 const USERS_FILE = "users.txt"
@@ -112,16 +112,12 @@ function AuthMiddleware(handler)
       path = String(req.target)
       jwt1 = get_jwt_from_cookie(HTTP.header(req, "Cookie"))
       jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
-      username = claims(jwt1)["username"]
-      if username === nothing
-         println("❌ User not authenticated, redirecting to login page")
-         return HTTP.Response(303, ["Location" => "/login"])
-      end
       ipaddr = string(HTTP.header(req, "X-Forwarded-For", "127.0.0.1"))
       if path in ADMIN_URLS
       # Admin resource. This requires both the cookie and the Authorization header, as well as admin permissions
          if (check_jwt(jwt1, ipaddr, 1) && check_jwt(jwt2, ipaddr, 2))
-            is_admin_user = check_admin(jwt1, jwt2)
+            username = claims(jwt1)["username"]
+            is_admin_user = check_admin(username)
             if is_admin_user
                println("✅ User $username is an admin")
                handler(req)
@@ -1056,9 +1052,106 @@ end
             description: Access denied - admin permissions required
          '500':
             description: Internal server error
+   post:
+      tags:
+      - admin
+      summary: Create a new user
+      description: Creates a new user account with the specified details and permissions.
+      requestBody:
+         required: true
+         content:
+            application/json:
+               schema:
+                  type: object
+                  required:
+                  - username
+                  - password
+                  - email
+                  properties:
+                     username:
+                        type: string
+                        description: Unique username for the user
+                     password:
+                        type: string
+                        description: User password
+                     email:
+                        type: string
+                        format: email
+                        description: User email address
+                     is_premium:
+                        type: boolean
+                        default: false
+                        description: Premium user status
+                     is_admin:
+                        type: boolean
+                        default: false
+                        description: Administrator status
+                     gpu_access:
+                        type: boolean
+                        default: false
+                        description: GPU access permission
+                     max_daily_sequences:
+                        type: integer
+                        default: 10
+                        description: Maximum daily sequences allowed
+                     storage_quota_mb:
+                        type: number
+                        default: 0.5
+                        description: Storage quota in MB
+      responses:
+         '201':
+            description: User created successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    username:
+                      type: string
+                    message:
+                      type: string
+         '400':
+            description: Bad request - missing required fields
+         '403':
+            description: Access denied - admin permissions required
+         '409':
+            description: Conflict - username or email already exists
+         '500':
+            description: Internal server error
 """
 @get "/api/admin/users" function(req::HTTP.Request)
    return get_all_users()
+end
+
+@post "/api/admin/users" function(req::HTTP.Request)
+   # Obtener JSON y normalizar a strings
+   json_data = json(req)
+   println("JSON recibido en /api/admin/users: ", json_data)
+   
+   # Convertir a Dict y normalizar claves a strings
+   input_data = normalize_keys(json_data)
+   println("Campos disponibles normalizados: ", keys(input_data))
+   
+   # Verificar campos obligatorios con strings
+   required_fields = ["username", "password", "email"]
+   for field in required_fields
+      if !haskey(input_data, field)
+         println("❌ Required field missing: $field")
+         return HTTP.Response(400, ["Content-Type" => "application/json"],
+               JSON3.write(Dict("error" => "Required field missing: $field")))
+      end
+   end
+   
+   # Crear usuario con los datos validados
+   try
+      return admin_create_user(input_data)
+   catch e
+      println("❌ Error creating user: ", e)
+      return HTTP.Response(500, ["Content-Type" => "application/json"],
+         JSON3.write(Dict("error" => "Error al crear usuario: $e")))
+   end
 end
 
 @swagger """
@@ -1187,13 +1280,6 @@ end
             description: Result not found
          '500':
             description: Internal server error
-"""
-@get "/api/admin/results/{resultId}" function(req::HTTP.Request, resultId)
-   return get_result_details(parse(Int, resultId))
-end
-
-@swagger """
-/api/admin/results/{resultId}:
    delete:
       tags:
       - admin
@@ -1223,6 +1309,10 @@ end
          '500':
             description: Internal server error
 """
+@get "/api/admin/results/{resultId}" function(req::HTTP.Request, resultId)
+   return get_result_details(parse(Int, resultId))
+end
+
 @delete "/api/admin/results/{resultId}" function(req::HTTP.Request, resultId)
    jwt1 = get_jwt_from_cookie(HTTP.header(req, "Cookie"))
    return delete_result(parse(Int, resultId), claims(jwt1)["username"])
@@ -1315,105 +1405,6 @@ end
    return get_user_sequence_usage(parse(Int, userId))
 end
 
-@swagger """
-/api/admin/users:
-   post:
-      tags:
-      - admin
-      summary: Create a new user
-      description: Creates a new user account with the specified details and permissions.
-      requestBody:
-         required: true
-         content:
-            application/json:
-               schema:
-                  type: object
-                  required:
-                  - username
-                  - password
-                  - email
-                  properties:
-                     username:
-                        type: string
-                        description: Unique username for the user
-                     password:
-                        type: string
-                        description: User password
-                     email:
-                        type: string
-                        format: email
-                        description: User email address
-                     is_premium:
-                        type: boolean
-                        default: false
-                        description: Premium user status
-                     is_admin:
-                        type: boolean
-                        default: false
-                        description: Administrator status
-                     gpu_access:
-                        type: boolean
-                        default: false
-                        description: GPU access permission
-                     max_daily_sequences:
-                        type: integer
-                        default: 10
-                        description: Maximum daily sequences allowed
-                     storage_quota_mb:
-                        type: number
-                        default: 0.5
-                        description: Storage quota in MB
-      responses:
-         '201':
-            description: User created successfully
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    username:
-                      type: string
-                    message:
-                      type: string
-         '400':
-            description: Bad request - missing required fields
-         '403':
-            description: Access denied - admin permissions required
-         '409':
-            description: Conflict - username or email already exists
-         '500':
-            description: Internal server error
-"""
-@post "/api/admin/users" function(req::HTTP.Request)
-   # Obtener JSON y normalizar a strings
-   json_data = json(req)
-   println("JSON recibido en /api/admin/users: ", json_data)
-   
-   # Convertir a Dict y normalizar claves a strings
-   input_data = normalize_keys(json_data)
-   println("Campos disponibles normalizados: ", keys(input_data))
-   
-   # Verificar campos obligatorios con strings
-   required_fields = ["username", "password", "email"]
-   for field in required_fields
-      if !haskey(input_data, field)
-         println("❌ Required field missing: $field")
-         return HTTP.Response(400, ["Content-Type" => "application/json"],
-               JSON3.write(Dict("error" => "Required field missing: $field")))
-      end
-   end
-   
-   # Crear usuario con los datos validados
-   try
-      return admin_create_user(input_data)
-   catch e
-      println("❌ Error creating user: ", e)
-      return HTTP.Response(500, ["Content-Type" => "application/json"],
-         JSON3.write(Dict("error" => "Error al crear usuario: $e")))
-   end
-end
 
 @swagger """
 /api/admin/users/{userId}:
@@ -1476,10 +1467,44 @@ end
             description: User not found
          '500':
             description: Internal server error
+   delete:
+      tags:
+      - admin
+      summary: Delete a user
+      description: Deletes a user account and all associated data.
+      parameters:
+         - in: path
+           name: userId
+           required: true
+           schema:
+              type: integer
+           description: The user ID to delete
+      responses:
+         '200':
+            description: User deleted successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+         '403':
+            description: Access denied - admin permissions required
+         '404':
+            description: User not found
+         '409':
+            description: Conflict - cannot delete administrator user
+         '500':
+            description: Internal server error
 """
 @put "/api/admin/users/{userId}" function(req::HTTP.Request, userId)
    input_data = normalize_keys(json(req))
    return update_user(parse(Int, userId), input_data)
+end
+
+@delete "/api/admin/users/{userId}" function(req::HTTP.Request, userId)
+   return delete_user(parse(Int, userId))
 end
 
 @swagger """
@@ -1535,43 +1560,6 @@ end
    end
    
    return reset_user_password(parse(Int, userId), input_data["new_password"])
-end
-
-@swagger """
-/api/admin/users/{userId}:
-   delete:
-      tags:
-      - admin
-      summary: Delete a user
-      description: Deletes a user account and all associated data.
-      parameters:
-         - in: path
-           name: userId
-           required: true
-           schema:
-              type: integer
-           description: The user ID to delete
-      responses:
-         '200':
-            description: User deleted successfully
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    message:
-                      type: string
-         '403':
-            description: Access denied - admin permissions required
-         '404':
-            description: User not found
-         '409':
-            description: Conflict - cannot delete administrator user
-         '500':
-            description: Internal server error
-"""
-@delete "/api/admin/users/{userId}" function(req::HTTP.Request, userId)
-   return delete_user(parse(Int, userId))
 end
 
 @swagger """
@@ -1685,13 +1673,6 @@ end
             description: Sequence usage record not found
          '500':
             description: Internal server error
-"""
-@get "/api/admin/sequence-usage/{usageId}" function(req::HTTP.Request, usageId)
-   return get_sequence_usage_by_id(parse(Int, usageId))
-end
-
-@swagger """
-/api/admin/sequence-usage/{usageId}:
    put:
       tags:
       - admin
@@ -1735,14 +1716,16 @@ end
          '500':
             description: Internal server error
 """
+@get "/api/admin/sequence-usage/{usageId}" function(req::HTTP.Request, usageId)
+   return get_sequence_usage_by_id(parse(Int, usageId))
+end
+
 @put "/api/admin/sequence-usage/{usageId}" function(req::HTTP.Request, usageId)
    input_data = normalize_keys(json(req))
-    
    if !haskey(input_data, "sequences_used")
       return HTTP.Response(400, ["Content-Type" => "application/json"],
          JSON3.write(Dict("error" => "Missing sequences_used field")))
    end
-   
    return update_sequence_usage(parse(Int, usageId), input_data["sequences_used"])
 end
 
