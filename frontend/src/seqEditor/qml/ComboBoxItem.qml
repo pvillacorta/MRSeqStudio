@@ -2,15 +2,20 @@ import QtQuick
 import QtQuick.Controls
 
 ComboBox {
-    id:comboInput
+    id: comboInput
     property int idNumber
     font.pointSize: window.fontSize;
     model: model
     delegate: ItemDelegate {
         width: comboInput.width
         height: comboInput.height
-        Item{
-            anchors.fill:parent
+
+        background: Rectangle {
+            color: (highlighted || hovered) ? "#f0f0f0" : "transparent"
+        }
+
+        Item {
+            anchors.fill: parent
             anchors.leftMargin: 5
             Text {
                 anchors.verticalCenter: parent.verticalCenter

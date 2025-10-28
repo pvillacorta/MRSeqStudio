@@ -8,6 +8,7 @@ Item {
     property color menuColor
     property string menuTitle   
     property bool menuVisible: false
+    property color fontColor: "#1a1a1a"
 
     // ------- Duration
     property bool durationVisible
@@ -167,6 +168,7 @@ Item {
             Label{
                 visible: !window.mobile
                 text: "Select: "
+                color: fontColor
             }
 
             ComboBoxItem{
@@ -175,8 +177,6 @@ Item {
                 model: ["Flip angle and duration", "Flip angle and amplitude", "Duration and amplitude"];
             }
         }
-
-
 
         Column {
             id: column
@@ -197,9 +197,9 @@ Item {
                     columns: 4
                     rowSpacing: 3
 
-                    MenuLabel { text: "Lines:";   bold: true;   Layout.columnSpan: 2}
+                    MenuLabel { text: "Lines:";   bold: true;   Layout.columnSpan: 2; fontColor: fontColor}
                     TextInputItem{ idNumber: blockID;  id: linesInput; Layout.alignment: Qt.AlignRight }
-                    MenuLabel { text: "lines" }
+                    MenuLabel { text: "lines"; fontColor: fontColor }
                 }
             }
 
@@ -214,9 +214,9 @@ Item {
                     columns: 4
                     rowSpacing: 3
 
-                    MenuLabel { text: "Samples:";  bold: true;  Layout.columnSpan: 2}
+                    MenuLabel { text: "Samples:";  bold: true;  Layout.columnSpan: 2; fontColor: fontColor}
                     TextInputItem{ idNumber: blockID;  id: samplesInput; Layout.alignment: Qt.AlignRight}
-                    MenuLabel { text: "samples" }
+                    MenuLabel { text: "samples"; fontColor: fontColor }
                 }
             }
 
@@ -233,9 +233,9 @@ Item {
                     columns: 4
                     rowSpacing: 3
 
-                    MenuLabel { text: "Duration:";  bold: true; Layout.columnSpan: 2}
+                    MenuLabel { text: "Duration:";  bold: true; Layout.columnSpan: 2; fontColor: fontColor}
                     TextInputItem{ idNumber: blockID;  id:durationInput; Layout.alignment: Qt.AlignRight}
-                    MenuLabel { text: "s"}
+                    MenuLabel { text: "s"; fontColor: fontColor}
                 }
             }
 
@@ -249,12 +249,12 @@ Item {
                     columns: 8
                     rowSpacing: 3
 
-                    MenuLabel { text: "ADC Delay:";  bold: true;  Layout.columnSpan: 2}
+                    MenuLabel { text: "ADC Delay:";  bold: true;  Layout.columnSpan: 2; fontColor: fontColor}
                     TextInputItem{ idNumber: blockID;  id: adcDelayInput; Layout.alignment: Qt.AlignRight}
-                    MenuLabel { text: "s" }
-                    MenuLabel { text: "ADC Phase:";  bold: true;  Layout.columnSpan: 2}
+                    MenuLabel { text: "s"; fontColor: fontColor }
+                    MenuLabel { text: "ADC Phase:";  bold: true;  Layout.columnSpan: 2; fontColor: fontColor}
                     TextInputItem{ idNumber: blockID;  id: adcPhaseInput; Layout.alignment: Qt.AlignRight}
-                    MenuLabel { text: "rad" }
+                    MenuLabel { text: "rad"; fontColor: fontColor }
                 }
             }
 
@@ -269,9 +269,9 @@ Item {
                     columns: 4
                     rowSpacing: 3
 
-                    MenuLabel { text: "FOV:";  bold: true; Layout.columnSpan: 2}
+                    MenuLabel { text: "FOV:";  bold: true; Layout.columnSpan: 2; fontColor: fontColor}
                     TextInputItem{ idNumber: blockID;  id:fovInput; Layout.alignment: Qt.AlignRight}
-                    MenuLabel { text: "m" }
+                    MenuLabel { text: "m"; fontColor: fontColor }
                 }
             }
 
@@ -290,25 +290,25 @@ Item {
                         columns: 5
                         rowSpacing: 3
 
-                        MenuLabel { text: "RF:"; bold: true}
-                        MenuLabel { text: "RF Shape:"; Layout.alignment: Qt.AlignRight}
+                        MenuLabel { text: "RF:"; bold: true; fontColor: fontColor}
+                        MenuLabel { text: "RF Shape:"; Layout.alignment: Qt.AlignRight; fontColor: fontColor}
                         ComboBoxItem{
                             id: shapeInput;
                             idNumber: blockID;
                             model: linesVisible ? ["Sinc"] : ["Rectangle (hard)", "Sinc"];
                         }
 
-                        MenuLabel { text: "Peak |B1|[T]:";  Layout.alignment: Qt.AlignRight; enabled:b1ModuleInput.enabled; opacity: enabled}
+                        MenuLabel { text: "Peak |B1|[T]:";  Layout.alignment: Qt.AlignRight; enabled:b1ModuleInput.enabled; opacity: enabled; fontColor: fontColor}
                         TextInputItem{ idNumber: blockID;  id:b1ModuleInput
                                         enabled: rfVisible & rfSelect.currentIndex === 0 ? false : true
                                         opacity: enabled }
 
-                        MenuLabel { text: "Flip Angle [º]:"; Layout.alignment: Qt.AlignRight; Layout.columnSpan: 2; enabled:flipAngleInput.enabled; opacity: enabled}
+                        MenuLabel { text: "Flip Angle [º]:"; Layout.alignment: Qt.AlignRight; Layout.columnSpan: 2; enabled:flipAngleInput.enabled; opacity: enabled; fontColor: fontColor}
                         TextInputItem{ idNumber: blockID;   id:flipAngleInput;           Layout.columnSpan: 3
                                         enabled: rfVisible & rfSelect.currentIndex === 2 ? false : true
                                         opacity: enabled }
 
-                        MenuLabel { text: "Δf [Hz]:";  Layout.alignment: Qt.AlignRight; Layout.columnSpan: 2}
+                        MenuLabel { text: "Δf [Hz]:";  Layout.alignment: Qt.AlignRight; Layout.columnSpan: 2; fontColor: fontColor}
                         TextInputItem{ idNumber: blockID;  id:deltafInput}
                     }
                 }
@@ -330,25 +330,25 @@ Item {
                         anchors.rightMargin: 10
                         rowSpacing: 1
 
-                        MenuLabel { text: "Gradients:";                                 bold: true}
-                        MenuLabel { text: "InitialDelay [s]";                           Layout.alignment: Qt.AlignCenter}
-                        MenuLabel { text: "Rise/Fall [s]";                              Layout.alignment: Qt.AlignCenter}
-                        MenuLabel { text: "FlatTopTime [s]";                            Layout.alignment: Qt.AlignCenter}
-                        MenuLabel { text: "Amplitude [T/m]";                            Layout.alignment: Qt.AlignCenter}
+                        MenuLabel { text: "Gradients:";                                 bold: true; fontColor: fontColor}
+                        MenuLabel { text: "InitialDelay [s]";                           Layout.alignment: Qt.AlignCenter; fontColor: fontColor}
+                        MenuLabel { text: "Rise/Fall [s]";                              Layout.alignment: Qt.AlignCenter; fontColor: fontColor}
+                        MenuLabel { text: "FlatTopTime [s]";                            Layout.alignment: Qt.AlignCenter; fontColor: fontColor}
+                        MenuLabel { text: "Amplitude [T/m]";                            Layout.alignment: Qt.AlignCenter; fontColor: fontColor}
 
-                        MenuLabel { text: "Gx:";                                        Layout.alignment: Qt.AlignCenter}
+                        MenuLabel { text: "Gx:";                                        Layout.alignment: Qt.AlignCenter; fontColor: fontColor}
                         TextInputItem{ idNumber: blockID;  id:gxDelayInput;             Layout.alignment: Qt.AlignCenter}
                         TextInputItem{ idNumber: blockID;  id:gxRiseInput;              Layout.alignment: Qt.AlignCenter}
                         TextInputItem{ idNumber: blockID;  id:gxFlatTopInput;           Layout.alignment: Qt.AlignCenter}
                         TextInputItem{ idNumber: blockID;  id:gxAmplitudeInput;         Layout.alignment: Qt.AlignCenter}
 
-                        MenuLabel { text: "Gy:";                                        Layout.alignment: Qt.AlignCenter}
+                        MenuLabel { text: "Gy:";                                        Layout.alignment: Qt.AlignCenter; fontColor: fontColor}
                         TextInputItem{ idNumber: blockID;  id:gyDelayInput;             Layout.alignment: Qt.AlignCenter}
                         TextInputItem{ idNumber: blockID;  id:gyRiseInput;              Layout.alignment: Qt.AlignCenter}
                         TextInputItem{ idNumber: blockID;  id:gyFlatTopInput;           Layout.alignment: Qt.AlignCenter}
                         TextInputItem{ idNumber: blockID;  id:gyAmplitudeInput;         Layout.alignment: Qt.AlignCenter}
 
-                        MenuLabel { text: "Gz:";                                        Layout.alignment: Qt.AlignCenter}
+                        MenuLabel { text: "Gz:";                                        Layout.alignment: Qt.AlignCenter; fontColor: fontColor}
                         TextInputItem{ idNumber: blockID;  id:gzDelayInput;             Layout.alignment: Qt.AlignCenter}
                         TextInputItem{ idNumber: blockID;  id:gzRiseInput;              Layout.alignment: Qt.AlignCenter}
                         TextInputItem{ idNumber: blockID;  id:gzFlatTopInput;           Layout.alignment: Qt.AlignCenter}
@@ -367,12 +367,12 @@ Item {
                     anchors.margins:3
                     columns: 4
                     rowSpacing: 1
-                    MenuLabel { text: "TE:";  bold: true; Layout.columnSpan: 2}
+                    MenuLabel { text: "TE:";  bold: true; Layout.columnSpan: 2; fontColor: fontColor}
                     TextInputItem{ idNumber: blockID;  id:teInput; Layout.alignment: Qt.AlignRight}
-                    MenuLabel { text: "s" }
-                    MenuLabel { text: "TR:";  bold: true; Layout.columnSpan: 2}
+                    MenuLabel { text: "s"; fontColor: fontColor }
+                    MenuLabel { text: "TR:";  bold: true; Layout.columnSpan: 2; fontColor: fontColor}
                     TextInputItem{ idNumber: blockID;  id:trInput; Layout.alignment: Qt.AlignRight}
-                    MenuLabel { text: "s"}
+                    MenuLabel { text: "s"; fontColor: fontColor}
                 }
             }
 
@@ -386,10 +386,10 @@ Item {
                     columns: 2
                     rowSpacing: 3
 
-                    MenuLabel { text: "Iterator:";  bold: true}
+                    MenuLabel { text: "Iterator:";  bold: true; fontColor: fontColor}
                     TextInputItem{ idNumber: blockID;  id:iteratorInput; Layout.alignment: Qt.AlignRight; readOnly: true}
 
-                    MenuLabel { text: "Repetitions:";  bold: true}
+                    MenuLabel { text: "Repetitions:";  bold: true; fontColor: fontColor}
                     TextInputItem{ idNumber: blockID;  id:repsInput; Layout.alignment: Qt.AlignRight}
                 }
             }

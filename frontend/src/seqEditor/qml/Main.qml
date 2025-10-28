@@ -725,8 +725,9 @@ ApplicationWindow {
                 height: parent.height
                 width: 20 * text.length
                 z: 20
+                
                 background: Rectangle {
-                    color: light
+                    color: dark_3
                 }
 
                 onClicked: menuFile.open()
@@ -786,7 +787,7 @@ ApplicationWindow {
                         when: fileButton.hovered
                         PropertyChanges {
                             target: fileButton.background
-                            color: Qt.darker(light, 1.3)
+                            color: Qt.lighter(dark_3, 1.1)
                         }
                     }
                 ] // states
@@ -799,7 +800,7 @@ ApplicationWindow {
                 width: 20 * text.length
                 z: 20
                 background: Rectangle {
-                    color: light
+                    color: dark_3
                 }
 
                 onClicked: menuPlot.open()
@@ -820,7 +821,7 @@ ApplicationWindow {
                         when: plotButton.hovered
                         PropertyChanges {
                             target: plotButton.background
-                            color: Qt.darker(light, 1.3)
+                            color: Qt.lighter(dark_3, 1.1)
                         }
                     }
                 ] // states
