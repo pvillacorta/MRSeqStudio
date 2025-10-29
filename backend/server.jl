@@ -873,16 +873,25 @@ end
       SCANNERS[uname]                       = json_to_scanner(scanner_data)
       SEQUENCES[uname], ROT_MATRICES[uname] = json_to_sequence(seq_data, SCANNERS[uname])
 
-      p_seq    = remotecall_fetch(plot_seq, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height, slider=height>275)
-      p_kspace = remotecall_fetch(plot_kspace, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height)
-
+      p_seq = remotecall_fetch(plot_seq, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height, slider=height>275)
       seq_buffer = IOBuffer()
-      kspace_buffer = IOBuffer()
       KomaMRIPlots.PlotlyBase.to_html(seq_buffer, p_seq.plot)
-      KomaMRIPlots.PlotlyBase.to_html(kspace_buffer, p_kspace.plot)
-
       seq_html = String(take!(seq_buffer))
-      kspace_html = String(take!(kspace_buffer))
+
+      kspace_buffer = IOBuffer()
+      if is_ADC_on(SEQUENCES[uname])
+         p_kspace = remotecall_fetch(plot_kspace, pid, SEQUENCES[uname]; darkmode=true, width=width, height=height)
+         KomaMRIPlots.PlotlyBase.to_html(kspace_buffer, p_kspace.plot)
+         kspace_html = String(take!(kspace_buffer))
+      else
+         kspace_html = """
+         <html>
+            <body>
+               <p style="color:red; font-family: Arial, Helvetica, sans-serif;">No kspace can be plotted for this sequence with no ADC points</p>
+            </body>
+         </html>
+         """
+      end
 
       result = Dict(
           "seq_html" => seq_html,
