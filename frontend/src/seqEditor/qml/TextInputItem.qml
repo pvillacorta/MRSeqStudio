@@ -19,7 +19,7 @@ Item{
 
         topPadding: 0
         bottomPadding: 0
-        leftPadding: 2
+        leftPadding: 4
         rightPadding: 2
 
         background: Rectangle {

@@ -316,10 +316,10 @@ Item {
 
             Loader { visible: gradientsVisible
                 sourceComponent: configPanel
-                height: 90
+                height: 95
                 Flickable {
                     anchors.fill:parent
-                    anchors.leftMargin: 5; anchors.rightMargin: 5
+                    anchors.leftMargin: 5; anchors.rightMargin: 5; anchors.bottomMargin:5;
                     contentHeight: this.height
                     contentWidth: gradientsLayout.width
                     clip:true
@@ -336,7 +336,7 @@ Item {
                         MenuLabel { text: "FlatTopTime [s]";                            Layout.alignment: Qt.AlignCenter; fontColor: fontColor}
                         MenuLabel { text: "Amplitude [T/m]";                            Layout.alignment: Qt.AlignCenter; fontColor: fontColor}
 
-                        MenuLabel { text: "Gx:";                                        Layout.alignment: Qt.AlignCenter; fontColor: fontColor}
+                        MenuLabel { text: "Gx:";                                        Layout.alignment: Qt.AlignCenter; fontColor: fontColor;}
                         TextInputItem{ idNumber: blockID;  id:gxDelayInput;             Layout.alignment: Qt.AlignCenter}
                         TextInputItem{ idNumber: blockID;  id:gxRiseInput;              Layout.alignment: Qt.AlignCenter}
                         TextInputItem{ idNumber: blockID;  id:gxFlatTopInput;           Layout.alignment: Qt.AlignCenter}
