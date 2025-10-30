@@ -113,9 +113,9 @@ function AuthMiddleware(handler)
       jwt1 = get_jwt_from_cookie(HTTP.header(req, "Cookie"))
       jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
       ipaddr = string(HTTP.header(req, "X-Forwarded-For", "127.0.0.1"))
-      if path in ADMIN_URLS
-      # Admin resource. This requires both the cookie and the Authorization header, as well as admin permissions
-         if (check_jwt(jwt1, ipaddr, 1) && check_jwt(jwt2, ipaddr, 2))
+      if any(base -> startswith(path, base), ADMIN_URLS)
+      # Admin resource. This requires the cookie, as well as admin permissions
+         if (check_jwt(jwt1, ipaddr, 1))
             username = claims(jwt1)["username"]
             is_admin_user = check_admin(username)
             if is_admin_user
@@ -138,7 +138,7 @@ function AuthMiddleware(handler)
          else
             return HTTP.Response(303, ["Location" => "/login"])
          end
-      elseif (path in PUBLIC_URLS) 
+      elseif any(base -> startswith(path, base), PUBLIC_URLS)
       # Public resource. This does not requires cookie
          return check_jwt(jwt1, ipaddr, 1) ? HTTP.Response(303, ["Location" => "/app"]) : handler(req)
       elseif any(base -> startswith(path, base), PRIVATE_URLS) 

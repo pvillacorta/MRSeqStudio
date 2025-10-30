@@ -333,7 +333,6 @@ function logout() {
     fetch('/logout')
         .then(res => {
             if (res.status == 200) {
-                console.log("Is this working well?");
                 localStorage.clear();
                 setTimeout(() => {location.href = "/login";}, 0);
             }

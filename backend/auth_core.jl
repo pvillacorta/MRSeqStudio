@@ -21,7 +21,7 @@ function authenticate(username::String, password::String, ipaddr::String)
                 
                 return HTTP.Response(200, 
                     ["Set-Cookie" => "token=$(string(jwt1)); SameSite=Lax; Expires=$(expires_str)"],
-                    JSON3.write(Dict("token" => string(jwt2), "username" => username)))
+                    JSON3.write(Dict("token" => string(jwt2), "username" => username, "admin" => Int(check_admin(username)))))
             end
         end
         
@@ -56,7 +56,7 @@ function create_jwt(username, ipaddr, keyidx)
     end
 
     payload = Dict{String, Any}(
-        "iss" => "seqPlayground",
+        "iss" => "MRSeqStudio",
         "iat" => "$iat",
         "exp" => "$exp",
         "username" => username,

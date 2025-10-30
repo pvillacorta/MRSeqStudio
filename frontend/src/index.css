@@ -19,7 +19,6 @@ html, body {
     background-color: #303336;
 }
 
-
 .tabs-mobile {
     display: flex;
     margin: 0;
@@ -305,7 +304,7 @@ html, body {
 
 }
 
-#logout {
+.panel-button{
     background: #007bff;
     color: white;
     border: none;
@@ -315,6 +314,6 @@ html, body {
     cursor: pointer;
 }
 
-#logout:hover {
+.panel-button:hover {
     background: #0056b3;
 }

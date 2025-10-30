@@ -85,4 +85,11 @@ document.addEventListener("click", function (event) {
     userClicked = false
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+    var adminBtn = document.getElementById('admin');
+    if (localStorage.admin === "1" && adminBtn) {
+        adminBtn.style.display = "block";
+    }
+});
+
 export { openScreen, initTabs }

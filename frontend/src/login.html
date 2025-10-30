@@ -42,7 +42,7 @@
             const json = await res.json();
             localStorage.username = json.username;
             localStorage.token = json.token;
-
+            localStorage.admin = json.admin;
             // Espera a que se guarde todo y luego redirige
             location.href = "/app";
           } else {
