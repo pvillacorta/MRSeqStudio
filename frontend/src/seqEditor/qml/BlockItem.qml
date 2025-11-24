@@ -9,6 +9,9 @@ Item{
     height: 100
     width: collapsed? 0:100-20*ngroups
     visible:collapsed?false:true
+    
+    // Hide the original block in ListView when dragging to prevent visual jumps
+    opacity: dragArea.held ? 0 : 1
 
     property int dropIndex: index
 
@@ -150,6 +153,15 @@ Item{
 
         drag.target: held? dragArea: undefined
         drag.axis: Drag.XAndYAxis
+        
+        // Update the dragged block visual copy position to follow the mouse
+        onPositionChanged: {
+            if (held && drag.active && blockView.held && blockView.dragContainer) {
+                var globalPos = mapToItem(blockView.dragContainer, mouseX, mouseY);
+                blockView.dragX = globalPos.x;
+                blockView.dragY = globalPos.y;
+            }
+        }
 
         onClicked:{ //Configuration panel will be displayed:
             if(!popup.active){
@@ -249,6 +261,14 @@ Item{
                     held = true
                     blockView.held = true;
                     blockView.dragIndex = dropIndex
+                    blockView.originalDragIndex = dropIndex // Save the original index
+                    
+                    // Initialize dragged block visual copy position
+                    if (blockView.dragContainer) {
+                        var globalPos = mapToItem(blockView.dragContainer, mouseX, mouseY);
+                        blockView.dragX = globalPos.x;
+                        blockView.dragY = globalPos.y;
+                    }
 
                     if(isGroup(dropIndex)){
                         for(var i=0; i<blockList.get(dropIndex).children.count; i++){
@@ -266,6 +286,14 @@ Item{
                     held = true
                     blockView.held = true;
                     blockView.dragIndex = dropIndex
+                    blockView.originalDragIndex = dropIndex // Save the original index
+                    
+                    // Initialize dragged block visual copy position
+                    if (blockView.dragContainer) {
+                        var globalPos = mapToItem(blockView.dragContainer, mouseX, mouseY);
+                        blockView.dragX = globalPos.x;
+                        blockView.dragY = globalPos.y;
+                    }
 
                     if(isGroup(dropIndex)){
                         for(var i=0; i<blockList.get(dropIndex).children.count; i++){
@@ -280,6 +308,7 @@ Item{
             dragged = false;
             held = false;
             blockView.held = false;
+            blockView.originalDragIndex = -1; // Reset when drag ends
         }
 
         Drag.active: held
@@ -291,15 +320,28 @@ Item{
         DropArea {
             id:dropArea
             anchors {fill: parent; margins: 10}
+            
+            property bool hasMoved: false // Flag to prevent multiple moves over the same block
 
             onEntered: {
                 // Blocks must be siblings so we can move them
-                if(getParent(dropIndex) === getParent(blockView.dragIndex)){
+                // Only move if it's a different block than the one we're dragging
+                // and we haven't already moved over this block
+                // This prevents the "spasm" effect when dragging over blocks
+                if(getParent(dropIndex) === getParent(blockView.dragIndex) && 
+                   dropIndex !== blockView.dragIndex &&
+                   !hasMoved){
                     configMenu.menuVisible = false;
                     blockSeq.displayedMenu = -1;
 
+                    hasMoved = true; // Mark that we've moved over this block
                     moveBlock(blockView.dragIndex,dropIndex)
                 }
+            }
+            
+            onExited: {
+                // Reset the flag when leaving this drop area to allow moving to it again if needed
+                hasMoved = false;
             }
         } // DropArea
 

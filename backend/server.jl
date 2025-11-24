@@ -38,7 +38,7 @@ phantom_files_path = string(@__DIR__, "/phantoms")
 dynamicfiles(dynamic_files_path, "/") 
 staticfiles(phantom_files_path, "/public")
 
-const PUBLIC_URLS = ["/login", "/login.js", "/login.js.map", "/register"]
+const PUBLIC_URLS = ["/login", "/login.js", "/login.js.map", "/register", "/favicon.ico"]
 const PRIVATE_URLS = ["/simulate", "/recon", "/plot_sequence", "/plot_phantom"]
 const ADMIN_URLS = ["/admin", "/api/admin/users", "/api/admin/sequences", "/api/admin/sequences/{userId}", "/api/admin/results/{resultId}", "/api/admin/stats/sequences", "/api/admin/users/{userId}/sequences"]
 

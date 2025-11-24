@@ -965,8 +965,12 @@ ApplicationWindow {
                 ListView {
                     id: blockView
 
-                    property int dragIndex // Index of the block that we are dragging
+                    property int dragIndex // Current index of the block being dragged (updated during moves)
+                    property int originalDragIndex: -1 // Original index when drag started (never changes)
                     property bool held: false // Tells us is we are dragging a block or not
+                    property real dragX: 0 // X position of dragged block visual
+                    property real dragY: 0 // Y position of dragged block visual
+                    property Item dragContainer: draggedBlockContainer // Reference to the drag container
 
                     anchors.fill: parent
                     anchors.topMargin: seqTitle.height + 3
@@ -989,18 +993,78 @@ ApplicationWindow {
 
                     // ANIMATIONS when elements are added or moved
                     add: Transition{
-                        NumberAnimation {property: "scale"; from: 0; to: 1; duration: 100}
+                        NumberAnimation {property: "scale"; from: 0; to: 1; duration: 200}
                     }
                     move: Transition{
-                        NumberAnimation {properties: "x,y"; easing.type: Easing.OutBack; duration: 200}
+                        NumberAnimation {properties: "x,y"; easing.type: Easing.OutBack; duration: 400}
                     }
                     displaced: Transition{
-                        NumberAnimation {properties: "x,y"; easing.type: Easing.OutBack; duration: 200}
+                        NumberAnimation {properties: "x,y"; easing.type: Easing.OutBack; duration: 400}
                     }
                     remove: Transition{
-                        NumberAnimation {property: "scale"; from: 1; to: 0; duration: 100}
+                        NumberAnimation {property: "scale"; from: 1; to: 0; duration: 200}
                     }
                 }//ListView
+                
+                // Container for the dragged block visual copy (outside ListView to prevent repositioning)
+                Item {
+                    id: draggedBlockContainer
+                    objectName: "draggedBlockContainer"
+                    anchors.fill: parent
+                    z: 1000
+                    visible: blockView.held
+                    enabled: false // Don't intercept mouse events
+                    
+                    // Visual copy of the dragged block
+                    Rectangle {
+                        id: draggedBlockVisual
+                        visible: blockView.held
+                        x: blockView.dragX - width/2
+                        y: blockView.dragY - height/2
+                        width: 80
+                        height: 80
+                        radius: 4
+                        color: {
+                            // Use originalDragIndex to maintain the dragged block's appearance
+                            var idx = blockView.originalDragIndex >= 0 ? blockView.originalDragIndex : blockView.dragIndex;
+                            if (idx >= 0 && idx < blockList.count) {
+                                var cod = blockList.get(idx).cod;
+                                return cod==0? "#cca454":
+                                       cod==1? "#ed645a":
+                                       cod==2? "#61e86f":
+                                       cod==3? "#e3f56e":
+                                       cod==4? "#a68ff2":
+                                       cod==5? "#ffa361":
+                                       cod==6? "#ffa361": "#cccccc";
+                            }
+                            return "#cccccc";
+                        }
+                        opacity: 0.9
+                        scale: 0.7
+                        
+                        Text {
+                            anchors.centerIn: parent
+                            text: {
+                                // Use originalDragIndex to maintain the dragged block's appearance
+                                var idx = blockView.originalDragIndex >= 0 ? blockView.originalDragIndex : blockView.dragIndex;
+                                if (idx >= 0 && idx < blockList.count) {
+                                    var cod = blockList.get(idx).cod;
+                                    var name = blockList.get(idx).name;
+                                    return cod==0? name:
+                                           cod==1? "Ex":
+                                           cod==2? "Delay":
+                                           cod==3? "Dephase":
+                                           cod==4? "Readout":
+                                           cod==5? "EPI_ACQ":
+                                           cod==6? "GRE": "";
+                                }
+                                return "";
+                            }
+                            color: "black"
+                            font.pointSize: 10
+                        }
+                    }
+                }
             }//Rectangle
         } //MouseArea
 
