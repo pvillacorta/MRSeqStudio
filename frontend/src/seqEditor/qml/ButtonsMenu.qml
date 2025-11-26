@@ -61,7 +61,7 @@ Item{
                 onClicked: {
                     popup.visible = true
                     popup.active = true
-                    popup.nameInput.forceActiveFocus();
+                    popup.nameInput.textInput.forceActiveFocus();
                 }
             }
 

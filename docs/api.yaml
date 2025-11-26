@@ -95,7 +95,7 @@ paths:
       description: >-
         Returns the administration panel HTML page for managing users,
         sequences, and results.
-  /simulate:
+  /api/simulate:
     post:
       summary: Add a new simulation request
       requestBody:
@@ -187,7 +187,7 @@ paths:
       tags:
         - simulation
       description: Add a new simulation request
-  '/simulate/{simID}/status':
+  '/api/simulate/{simID}/status':
     get:
       summary: Get the status of a simulation
       parameters:
@@ -317,7 +317,7 @@ paths:
       tags:
         - gui
       description: Get the app and the web content
-  '/simulate/{simID}':
+  '/api/simulate/{simID}':
     get:
       summary: Get the result of a simulation
       parameters:
@@ -364,8 +364,8 @@ paths:
       description: >-
         Get the result of a simulation. If the simulation has finished, it
         returns its result. If not, it returns 303 with location =
-        /simulate/{simID}/status
-  '/recon/{simID}':
+        /api/simulate/{simID}/status
+  '/api/recon/{simID}':
     post:
       summary: Start reconstruction for a completed simulation
       parameters:
@@ -526,7 +526,7 @@ paths:
       description: >-
         Returns statistics about sequence usage including daily stats and top
         users.
-  /plot_sequence:
+  /api/plot/sequence:
     post:
       summary: Plot a sequence
       requestBody:
@@ -749,7 +749,7 @@ paths:
       tags:
         - admin
       description: Deletes a specific simulation result and its associated file.
-  /plot_phantom:
+  /api/plot/phantom:
     post:
       summary: Initialize and plot the selected phantom for the user
       requestBody:

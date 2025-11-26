@@ -43,7 +43,7 @@ function komaMRIsim(seq_json, scanner_json){
     // 202: Accepted
     // 303: See other
 
-    fetch("/simulate",{
+    fetch("/api/simulate",{
         method: "POST",
         headers:{
             "Content-type": "application/json",
@@ -148,7 +148,7 @@ function komaMRIrecon(){
     document.getElementById('loading-sim').style.display = "block";
 
     const simID = localStorage.currentSimID;
-    const reconstructUrl = `/recon/${simID}`;
+    const reconstructUrl = `/api/recon/${simID}`;
     
     // First, start the reconstruction
     fetch(reconstructUrl, {
@@ -288,7 +288,7 @@ function plot_seq(scanner_json, seq_json){
     sequenceFrame.addEventListener("load", onSequenceLoad);
     kspaceFrame.addEventListener("load", onKspaceLoad);
 
-    fetch("/plot_sequence", {
+    fetch("/api/plot/sequence", {
         method: "POST",
         headers: {
             "Content-type": "application/json",
@@ -473,7 +473,7 @@ function checkAndResumeSimulation() {
         
         // Resume the simulation polling
         const simID = localStorage.currentSimID;
-        const loc = `/simulate/${simID}`;
+        const loc = `/api/simulate/${simID}`;
         requestSimResult(loc);
     }
 }
@@ -488,7 +488,7 @@ function checkAndResumeReconstruction() {
         
         // Resume the reconstruction polling
         const simID = localStorage.currentSimID;
-        const loc = `/recon/${simID}`;
+        const loc = `/api/recon/${simID}`;
         requestReconResult(loc);
     }
 }

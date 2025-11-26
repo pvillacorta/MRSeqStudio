@@ -15,7 +15,6 @@ Item {
         popup.visible = false
         popup.active = false
         nameInput.text = "";
-        nameRect.color = "white";
         log.text = ""
     }
 
@@ -50,19 +49,10 @@ Item {
             height: 15
         }
 
-        Rectangle{
-            id: nameRect
+        TextInputItem{
+            id: nameInput
             anchors.left: parent.left
             anchors.right: parent.right
-            height: 20
-            border.width: 1
-            border.color: "gray"
-            color: "white"
-            TextInput {
-                id: nameInput
-                anchors.fill:parent
-                anchors.margins:3
-            }
         }
 
         Text{
@@ -99,20 +89,15 @@ Item {
     }
 
     //Done button
-    Button {
+    StyledButton {
         id: doneButton
-        text: "Done"
-        font.pointSize: popup.textSize
-
-        height:20
-        width:50
+        buttonText: "Done"
+        buttonWidth: 75
+        buttonHeight: 25
+        fontSize: popup.textSize
         anchors.bottom: parent.bottom
         anchors.right: parent.right
         anchors.margins: 5
-
-        background: Rectangle {
-            color: Qt.darker(light,1.3)
-        }
 
         onClicked: {
             var groupedBlocks = [];
@@ -136,14 +121,12 @@ Item {
             }
 
             if(nameInput.text === ""){
-                nameRect.color = "#fc8383"
                 log.text = "No name specified"
                 return;
             }
 
             for(var i=0; i<groupButtonList.count; i++){
                 if(groupButtonList.get(i).buttonText === nameInput.text){
-                    nameRect.color = "#fc8383"
                     log.text = "This name already exists"
                     return;
                 }

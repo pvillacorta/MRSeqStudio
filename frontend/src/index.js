@@ -133,7 +133,7 @@ async function displayVolume(filename){
     width: iframe.offsetWidth,
   };
 
-  const volumePromise = fetch("/plot_phantom", {
+  const volumePromise = fetch("/api/plot/phantom", {
       method: "POST",
       headers: {
           "Content-type": "application/json",

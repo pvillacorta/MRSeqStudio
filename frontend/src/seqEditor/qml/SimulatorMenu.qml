@@ -53,56 +53,18 @@ Rectangle{
         }
     }
 
-    Button{
-        id : simulateButton
-        text: "Simulate"
+    StyledButton {
+        id: simulateButton
+        buttonText: "Simulate"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 15
-        height: 25
-        width: 100
-        font.pointSize: window.fontSize
-        font.bold: true
-
-        background: Rectangle {
-            id: simulateButtonBackground
-            color: simulateButton.hovered ? "#046642" : "#1d9bf0"
-            radius: 6
-        }
-
-        contentItem: Text {
-            text: simulateButton.text
-            font: simulateButton.font
-            color: "white"
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
-
+        buttonWidth: 100
+        buttonHeight: 25
+        fontSize: window.fontSize
+        
         onClicked: {
             simulate()
         }
-
-        states: [
-                State{
-                    when: !simulateButton.hovered
-                    PropertyChanges {
-                        target: simulateButtonBackground
-                        color: "#1d9bf0"
-                    }
-                },
-                State{
-                    when: simulateButton.hovered
-                    PropertyChanges {
-                        target: simulateButtonBackground
-                        color: "#046642"
-                    }
-                }
-            ] // states
-
-        transitions: [
-            Transition{
-                PropertyAnimation {property: "color"; duration: 200}
-            }
-        ]
     }
 }

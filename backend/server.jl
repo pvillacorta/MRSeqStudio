@@ -39,7 +39,7 @@ dynamicfiles(dynamic_files_path, "/")
 staticfiles(phantom_files_path, "/public")
 
 const PUBLIC_URLS = ["/login", "/login.js", "/login.js.map", "/register", "/favicon.ico"]
-const PRIVATE_URLS = ["/simulate", "/recon", "/plot_sequence", "/plot_phantom"]
+const PRIVATE_URLS = ["/api/simulate", "/api/recon", "/api/plot/sequence", "/api/plot/phantom"]
 const ADMIN_URLS = ["/admin", "/api/admin/users", "/api/admin/sequences", "/api/admin/sequences/{userId}", "/api/admin/results/{resultId}", "/api/admin/stats/sequences", "/api/admin/users/{userId}/sequences"]
 
 const AUTH_FILE  = "auth.txt"
@@ -265,6 +265,77 @@ end
 end
 
 @swagger """
+/api/presets/sequences:
+   get:
+      tags:
+      - sequences
+      summary: Get list of preset sequences
+      description: Returns a list of all available preset sequence names from the sequences directory.
+      responses:
+         '200':
+            description: List of preset sequence names
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    type: string
+         '500':
+            description: Internal server error
+"""
+@get "/api/presets/sequences" function(req::HTTP.Request)
+   sequences_dir = string(@__DIR__, "/sequences")
+   if !isdir(sequences_dir)
+      return HTTP.Response(500, ["Content-Type" => "application/json"],
+         JSON3.write(Dict("error" => "Sequences directory not found")))
+   end
+   
+   sequence_files = filter(f -> endswith(f, ".json"), readdir(sequences_dir))
+   sequence_names = [replace(f, ".json" => "") for f in sequence_files]
+   return HTTP.Response(200, ["Content-Type" => "application/json"],
+      JSON3.write(sequence_names))
+end
+
+@swagger """
+/api/presets/sequences/{sequenceName}:
+   get:
+      tags:
+      - sequences
+      summary: Get a preset sequence by name
+      description: Returns the JSON content of a preset sequence file.
+      parameters:
+         - in: path
+           name: sequenceName
+           required: true
+           schema:
+              type: string
+           description: The name of the preset sequence (without .json extension)
+      responses:
+         '200':
+            description: Preset sequence JSON content
+            content:
+              application/json:
+                schema:
+                  type: object
+         '404':
+            description: Sequence not found
+         '500':
+            description: Internal server error
+"""
+@get "/api/presets/sequences/{sequenceName}" function(req::HTTP.Request, sequenceName)
+   sequences_dir = string(@__DIR__, "/sequences")
+   sequence_file = string(sequences_dir, "/", sequenceName, ".json")
+   
+   if !isfile(sequence_file)
+      return HTTP.Response(404, ["Content-Type" => "application/json"],
+         JSON3.write(Dict("error" => "Sequence not found")))
+   end
+   
+   sequence_content = read(sequence_file, String)
+   return HTTP.Response(200, ["Content-Type" => "application/json"], sequence_content)
+end
+
+@swagger """
 /logout:
    get:
       tags:
@@ -320,7 +391,7 @@ end
 
 ## SIMULATION
 @swagger """
-/simulate:
+/api/simulate:
    post:
       tags:
       - simulation
@@ -436,7 +507,7 @@ end
          '500':
             description: Internal server error
 """
-@post "/simulate" function(req::HTTP.Request)
+@post "/api/simulate" function(req::HTTP.Request)
    # Get user information
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
@@ -487,14 +558,14 @@ end
    # Simulation  (asynchronous. It should not block the HTTP 202 Response)
    RAW_RESULTS[uname]                    = @spawnat pid sim(PHANTOMS[uname], SEQUENCES[uname], SCANNERS[uname], STATUS_FILES[simID], gpu_active)
 
-   headers = ["Location" => string("/simulate/",simID)]
+   headers = ["Location" => string("/api/simulate/",simID)]
    global simID += 1
    # 202: Partial Content
    return HTTP.Response(202,headers)
 end
 
 @swagger """
-/simulate/{simID}:
+/api/simulate/{simID}:
    get:
       tags:
       - simulation
@@ -535,12 +606,13 @@ end
                 schema:
                   type: string
                   format: uri
+                  example: /api/simulate/1/status
          '404':
             description: Simulation not found
          '500':
             description: Internal server error
 """
-@get "/simulate/{simID}" function(req::HTTP.Request, simID, width::Int, height::Int)
+@get "/api/simulate/{simID}" function(req::HTTP.Request, simID, width::Int, height::Int)
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
    _simID = parse(Int, simID)
@@ -551,7 +623,7 @@ end
    end
    close(io)
    if -2 < SIM_PROGRESSES[_simID] < 100      # Simulation not started or in progress
-      headers = ["Location" => string("/simulate/",_simID,"/status")]
+      headers = ["Location" => string("/api/simulate/",_simID,"/status")]
       return HTTP.Response(303,headers)
    elseif SIM_PROGRESSES[_simID] == 100  # Simulation finished
       width  = width  - 15
@@ -586,7 +658,7 @@ end
 end
 
 @swagger """
-/simulate/{simID}/status:
+/api/simulate/{simID}/status:
    get:
       tags:
       - simulation
@@ -622,13 +694,13 @@ end
          '500':
             description: Internal server error
 """
-@get "/simulate/{simID}/status" function(req::HTTP.Request, simID)
+@get "/api/simulate/{simID}/status" function(req::HTTP.Request, simID)
    return HTTP.Response(200,body=JSON3.write(SIM_PROGRESSES[parse(Int, simID)]))
 end
 
 ## RECONSTRUCTION
 @swagger """
-/recon/{simID}:
+/api/recon/{simID}:
    post:
       tags:
       - reconstruction
@@ -656,7 +728,7 @@ end
          '500':
             description: Internal server error
 """
-@post "/recon/{simID}" function(req::HTTP.Request, simID)
+@post "/api/recon/{simID}" function(req::HTTP.Request, simID)
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
    _simID = parse(Int, simID)
@@ -681,13 +753,13 @@ end
    
    RECON_RESULTS[uname] = @spawnat pid recon(fetch(RAW_RESULTS[uname]), SEQUENCES[uname], ROT_MATRICES[uname], STATUS_FILES[_simID])
    
-   headers = ["Location" => string("/recon/",_simID)]
+   headers = ["Location" => string("/api/recon/",_simID)]
    # 202: Accepted
    return HTTP.Response(202,headers)
 end
 
 
-@get "/recon/{simID}" function(req::HTTP.Request, simID, width::Int, height::Int)
+@get "/api/recon/{simID}" function(req::HTTP.Request, simID, width::Int, height::Int)
    jwt2 = get_jwt_from_auth_header(HTTP.header(req, "Authorization"))
    uname = claims(jwt2)["username"]
    _simID = parse(Int, simID)
@@ -698,7 +770,7 @@ end
    end
    close(io)
    if RECON_PROGRESSES[_simID] == 100 # Reconstruction not finished
-      headers = ["Location" => string("/recon/",_simID,"/status")]
+      headers = ["Location" => string("/api/recon/",_simID,"/status")]
       return HTTP.Response(303,headers)
    elseif RECON_PROGRESSES[_simID] == 101 # Reconstruction finished
       img    = fetch(RECON_RESULTS[uname])[1]
@@ -730,13 +802,13 @@ end
    end
 end
 
-@get "/recon/{simID}/status" function(req::HTTP.Request, simID)
+@get "/api/recon/{simID}/status" function(req::HTTP.Request, simID)
    return HTTP.Response(200,body=JSON3.write(RECON_PROGRESSES[parse(Int, simID)]))
 end
 
 ## PLOT SEQUENCE
 @swagger """
-/plot_sequence:
+/api/plot/sequence:
    post:
       tags:
       - plot
@@ -856,7 +928,7 @@ end
          '500':
             description: Internal server error
 """
-@post "/plot_sequence" function(req::HTTP.Request)
+@post "/api/plot/sequence" function(req::HTTP.Request)
    try
       scanner_data = json(req)["scanner"]
       seq_data     = json(req)["sequence"]
@@ -907,7 +979,7 @@ end
 
 ## SELECT AND PLOT PHANTOM
 @swagger """
-/plot_phantom:
+/api/plot/phantom:
    post:
       tags:
       - plot
@@ -955,7 +1027,7 @@ end
          '500':
             description: Internal server error
 """
-@post "/plot_phantom" function(req::HTTP.Request)
+@post "/api/plot/phantom" function(req::HTTP.Request)
    try
       input_data = json(req)
       phantom_string = input_data["phantom"]
