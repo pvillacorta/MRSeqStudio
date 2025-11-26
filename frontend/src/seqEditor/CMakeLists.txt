@@ -36,6 +36,7 @@ set(qml_resource_files
     "qml/DeleteButton.qml"
     "qml/Seq_Example.qml"
     "qml/ComboBoxItem.qml"
+    "qml/MenuPresets.qml"
     "qml/StyledButton.qml"
     "icons/arrow.png"
     "icons/arrow_gray.png"

@@ -2,9 +2,18 @@
 
 using namespace std;
 
+// Static pointer to Backend instance for WASM callbacks
+#ifdef Q_OS_WASM
+static Backend* g_backendInstance = nullptr;
+#endif
+
 Backend::Backend(QObject *parent)
     : QObject{parent}
-{}
+{
+    #ifdef Q_OS_WASM
+    g_backendInstance = this;
+    #endif
+}
 
 bool Backend::active(int code, std::vector<int> vector){
     return std::find(vector.begin(), vector.end(), code) != vector.end();
@@ -340,6 +349,70 @@ EM_JS(void, display_phantom, (const char* filename), {
 EM_JS(void, sim_js, (const char* seqModel, const char* scanModel), {
     komaMRIsim(UTF8ToString(seqModel), UTF8ToString(scanModel));
 })
+
+// Helper function that can access private members (friend function)
+#ifdef Q_OS_WASM
+void processPresetSequenceResultImpl(const char* jsonStr) {
+    if (!g_backendInstance || !jsonStr) return;
+    
+    // Convert JSON to QByteArray
+    QByteArray jsonData(jsonStr);
+    
+    // Process JSON to QML using parseJSONSequenceToQML (same as getUploadSequence)
+    QByteArray qmlData = g_backendInstance->parseJSONSequenceToQML(jsonData);
+    
+    // Save to temporary file (same approach as getUploadSequence)
+    EM_ASM({
+        var tempFileName = $2 + ".qml";
+        var stream = FS.open(tempFileName,'w');
+        var dataPtr = $0;
+        var dataSize = $1;
+        FS.write(stream, HEAPU8, dataPtr, dataSize, 0);
+        FS.close(stream);
+    }, qmlData.data(), qmlData.size(), g_backendInstance->fileNumber);
+    
+    // Emit signal with file path (same as uploadSequenceSelected)
+    int fileNum = g_backendInstance->fileNumber++;
+    Q_EMIT g_backendInstance->uploadSequenceSelected("file://" + QString::fromStdString(std::to_string(fileNum)) + ".qml");
+}
+#endif
+
+// Simple callback function to process presets result
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE
+    void processPresetsResult(const char* jsonStr) {
+        if (!g_backendInstance || !jsonStr) return;
+        
+        try {
+            std::string jsonString(jsonStr);
+            json j = json::parse(jsonString);
+            
+            QStringList sequenceNames;
+            if (j.is_array()) {
+                for (const auto& item : j) {
+                    if (item.is_string()) {
+                        sequenceNames.append(QString::fromStdString(item.get<std::string>()));
+                    }
+                }
+            }
+            Q_EMIT g_backendInstance->presetsSequencesReceived(sequenceNames);
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+        }
+    }
+    
+    EMSCRIPTEN_KEEPALIVE
+    void processPresetSequenceResult(const char* jsonStr) {
+        #ifdef Q_OS_WASM
+        processPresetSequenceResultImpl(jsonStr);
+        #endif
+    }
+}
+
+// Helper function to call processPresetsResult from JavaScript
+EM_JS(void, call_processPresetsResult, (const char* jsonStr), {
+    _processPresetsResult(UTF8ToString(jsonStr));
+})
 #endif
 
 // Slots
@@ -398,6 +471,49 @@ void Backend::getUploadSequence(){
             fileNumber++;
         }
     });
+}
+
+void Backend::getUploadSequenceFromPresets(){
+    #ifdef Q_OS_WASM
+        // Simple approach: JavaScript calls C++ when result is ready
+        EM_ASM({
+            getPresetsSequences().then(function(data) {
+                var jsonString = JSON.stringify(data);
+                // Convert string to C string and call the C++ function directly
+                var lengthBytes = lengthBytesUTF8(jsonString) + 1;
+                var stringPtr = _malloc(lengthBytes);
+                stringToUTF8(jsonString, stringPtr, lengthBytes);
+                
+                // Call the C++ function directly (Emscripten adds _ prefix)
+                _processPresetsResult(stringPtr);
+                
+                _free(stringPtr);
+            });
+        });
+    #endif
+}
+
+void Backend::loadPresetSequence(QString sequenceName){
+    #ifdef Q_OS_WASM
+        std::string seqName = sequenceName.toStdString();
+        EM_ASM({
+            var seqName = UTF8ToString($0);
+            getPresetSequence(seqName).then(function(data) {
+                if (data) {
+                    var jsonString = JSON.stringify(data);
+                    // Convert string to C string and call the C++ function directly
+                    var lengthBytes = lengthBytesUTF8(jsonString) + 1;
+                    var stringPtr = _malloc(lengthBytes);
+                    stringToUTF8(jsonString, stringPtr, lengthBytes);
+                    
+                    // Call the C++ function directly (Emscripten adds _ prefix)
+                    _processPresetSequenceResult(stringPtr);
+                    
+                    _free(stringPtr);
+                }
+            });
+        }, seqName.c_str());
+    #endif
 }
 
 void Backend::getUploadScanner(){

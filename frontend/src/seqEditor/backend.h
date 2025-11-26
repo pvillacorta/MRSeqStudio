@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QFileDialog>
+#include <QStringList>
 
 #include <iostream>
 #include <fstream>
@@ -36,12 +37,21 @@ private:
 
     int fileNumber = 0;
 
+    // Helper functions for WASM callbacks - need to be accessible from extern "C" functions
+    #ifdef Q_OS_WASM
+    // Forward declaration for friend function
+    friend void processPresetSequenceResultImpl(const char* jsonStr);
+    #endif
+
 signals:
     void uploadSequenceSelected(QString path);
     void uploadScannerSelected(QString path);
+    void presetsSequencesReceived(QStringList sequences);
 
 public slots:
     void getUploadSequence();
+    void getUploadSequenceFromPresets();
+    void loadPresetSequence(QString sequenceName);
     void getDownloadSequence(QString qmlModel, QString extension);
 
     void getUploadScanner();

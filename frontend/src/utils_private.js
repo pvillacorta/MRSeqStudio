@@ -503,3 +503,55 @@ if (document.readyState === 'loading') {
     checkAndResumeSimulation();
     checkAndResumeReconstruction();
 }
+
+// ==================== PRESETS SEQUENCES ====================
+// Global variable to store the result for synchronous access
+var _presetsSequencesResult = null;
+
+function getPresetsSequences() {
+    return fetch("/api/presets/sequences", {
+            method: "GET",
+            headers: {
+                "Authorization": "Bearer " + localStorage.token,
+            },
+        }).then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        }).then(data => {
+            // Store result in global variable as JSON string
+            _presetsSequencesResult = JSON.stringify(data);
+            return data;
+        }).catch(error => {
+            console.error("Error getting presets sequences:", error);
+            _presetsSequencesResult = "[]";
+            return [];
+        });
+}
+
+/**
+ * getPresetSequence(sequenceName)
+ * 
+ * Fetches a specific preset sequence from the API endpoint /api/presets/sequences/{sequenceName}
+ * and returns the JSON content.
+ * 
+ * @param {string} sequenceName - The name of the preset sequence to load
+ * @returns {Promise<object>} A promise that resolves to the sequence JSON object
+ */
+function getPresetSequence(sequenceName) {
+    return fetch("/api/presets/sequences/" + sequenceName, {
+            method: "GET",
+            headers: {
+                "Authorization": "Bearer " + localStorage.token,
+            },
+        }).then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        }).catch(error => {
+            console.error("Error getting preset sequence:", error);
+            return null;
+        });
+}

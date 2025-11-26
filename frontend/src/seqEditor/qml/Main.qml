@@ -748,9 +748,19 @@ ApplicationWindow {
                                 seqDescription.text = "";
                             }
                         }
-                        Action {
-                            text: "Load Sequence"
-                            onTriggered: backend.getUploadSequence();
+                        Menu {
+                            title: "Load Sequence"
+                            font.pointSize: 10
+                            Action {
+                                text: "From File ..."
+                                onTriggered: backend.getUploadSequence();
+                            }
+                            Action {
+                                text: "From Presets ..."
+                                onTriggered: {
+                                    backend.getUploadSequenceFromPresets();
+                                }
+                            }
                         }
 
                         Menu {
@@ -829,6 +839,10 @@ ApplicationWindow {
         }
     }
 
+    MenuPresets {
+        id: menuPresets
+    }
+
     Connections {
         target: backend
         function onUploadSequenceSelected(path) {
@@ -847,6 +861,17 @@ ApplicationWindow {
                 } else {
                     blockList.get(i).collapsed = false;
                 }
+            }
+        }
+
+        function onPresetsSequencesReceived(sequences) {
+            // Show dialog to select a sequence
+            if (sequences.length > 0) {
+                menuPresets.sequences = sequences;
+                menuPresets.open();
+            } else {
+                // Show message that no presets are available
+                console.log("No preset sequences available");
             }
         }
 
@@ -1065,11 +1090,11 @@ ApplicationWindow {
         }
 
         Rectangle {
-            visible: popup.visible
+            visible: popup.visible || menuPresets.visible
             color: dark_1
             opacity: 0.7
             anchors.top:blocksMenu.top
-            z: 18
+            z: popup.visible ? 18 : 20
             height: window.height - (blockSeq.height + blockSeq.y)
             width: window.width
         }
