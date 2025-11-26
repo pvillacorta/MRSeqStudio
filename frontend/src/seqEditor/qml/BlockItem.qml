@@ -253,6 +253,49 @@ Item{
         }
 
         // ---------------------------------- DRAG AND DROP MECHANICS ---------------------------------------
+        function collapseRecursively(idx){
+            var draggedParent = getParent(idx);   
+            // Collect all ancestors and their siblings (to exclude from collapse)
+            var excludeList = [];
+            excludeList.push(idx); // Don't collapse the dragged block itself
+            // Recursively collect all ancestors and their siblings
+            function collectAncestorsAndSiblings(index) {
+                var parent = getParent(index);
+                if(parent === -1) return; // No more ancestors
+                // Add ancestor if not already in list
+                if(excludeList.indexOf(parent) === -1){
+                    excludeList.push(parent);
+                }
+                // Add all siblings of this ancestor
+                if(isGroup(parent)){
+                    for(var j=0; j<blockList.get(parent).children.count; j++){
+                        var siblingIdx = blockList.get(parent).children.get(j).number;
+                        if(excludeList.indexOf(siblingIdx) === -1){
+                            excludeList.push(siblingIdx);
+                        }
+                    }
+                }
+                // Recurse to parent's parent
+                collectAncestorsAndSiblings(parent);
+            }
+            // Collect ancestors and their siblings
+            collectAncestorsAndSiblings(idx);
+            // Add siblings of the dragged block
+            if(draggedParent !== -1 && isGroup(draggedParent)){
+                for(var k=0; k<blockList.get(draggedParent).children.count; k++){
+                    var siblingIdx = blockList.get(draggedParent).children.get(k).number;
+                    if(excludeList.indexOf(siblingIdx) === -1){
+                        excludeList.push(siblingIdx);
+                    }
+                }
+            }
+            // Collapse all blocks that are children, except those in excludeList
+            for(var i=0; i<blockList.count; i++){
+                if(isChild(i) && excludeList.indexOf(i) === -1){
+                    collapse(i);
+                }
+            }   
+        }
 
         onPressed:{
             if (!window.mobile){
@@ -262,18 +305,13 @@ Item{
                     blockView.held = true;
                     blockView.dragIndex = dropIndex
                     blockView.originalDragIndex = dropIndex // Save the original index
-                    
+                    // Collapse all blocks at the same level or lower
+                    collapseRecursively(dropIndex);
                     // Initialize dragged block visual copy position
                     if (blockView.dragContainer) {
                         var globalPos = mapToItem(blockView.dragContainer, mouseX, mouseY);
                         blockView.dragX = globalPos.x;
                         blockView.dragY = globalPos.y;
-                    }
-
-                    if(isGroup(dropIndex)){
-                        for(var i=0; i<blockList.get(dropIndex).children.count; i++){
-                            collapse(blockList.get(dropIndex).children.get(i).number);
-                        }
                     }
                 }
             }
@@ -287,18 +325,13 @@ Item{
                     blockView.held = true;
                     blockView.dragIndex = dropIndex
                     blockView.originalDragIndex = dropIndex // Save the original index
-                    
+                    // Collapse all blocks at the same level or lower
+                    collapseRecursively(dropIndex);
                     // Initialize dragged block visual copy position
                     if (blockView.dragContainer) {
                         var globalPos = mapToItem(blockView.dragContainer, mouseX, mouseY);
                         blockView.dragX = globalPos.x;
                         blockView.dragY = globalPos.y;
-                    }
-
-                    if(isGroup(dropIndex)){
-                        for(var i=0; i<blockList.get(dropIndex).children.count; i++){
-                            collapse(blockList.get(dropIndex).children.get(i).number);
-                        }
                     }
                 }
             }
@@ -322,15 +355,25 @@ Item{
             anchors {fill: parent; margins: 10}
             
             property bool hasMoved: false // Flag to prevent multiple moves over the same block
+            property real initialDragX: -1 // Track initial drag position when entering
+            property real movementThreshold: 0.35 // Minimum movement as fraction of block width (prevents back-and-forth with animations)
 
-            onEntered: {
+            onEntered: function(drag) {
+                // Initialize position tracking at the center of the block
+                initialDragX = drag.x
+            }
+
+            onPositionChanged: function(drag) {
+                // Calculate distance from initial position (when entered this drop area)
+                // This ensures symmetric threshold in both directions
+                var distanceFromEntry = initialDragX !== -1 ? Math.abs(drag.x - initialDragX) : 0;
+                // Use threshold relative to block width for consistency in both directions
+                var threshold = dropArea.width * movementThreshold;
+                // Only process if mouse has moved enough from entry point
+                // This prevents back-and-forth with slow movements and ensures symmetric behavior
+                if(distanceFromEntry < threshold && initialDragX !== -1) return;
                 // Blocks must be siblings so we can move them
-                // Only move if it's a different block than the one we're dragging
-                // and we haven't already moved over this block
-                // This prevents the "spasm" effect when dragging over blocks
-                if(getParent(dropIndex) === getParent(blockView.dragIndex) && 
-                   dropIndex !== blockView.dragIndex &&
-                   !hasMoved){
+                if(getParent(dropIndex) === getParent(blockView.dragIndex) && dropIndex !== blockView.dragIndex && !hasMoved){
                     configMenu.menuVisible = false;
                     blockSeq.displayedMenu = -1;
 
@@ -342,6 +385,7 @@ Item{
             onExited: {
                 // Reset the flag when leaving this drop area to allow moving to it again if needed
                 hasMoved = false;
+                initialDragX = -1;
             }
         } // DropArea
 

@@ -993,16 +993,13 @@ ApplicationWindow {
 
                     // ANIMATIONS when elements are added or moved
                     add: Transition{
-                        NumberAnimation {property: "scale"; from: 0; to: 1; duration: 200}
-                    }
-                    move: Transition{
-                        NumberAnimation {properties: "x,y"; easing.type: Easing.OutBack; duration: 400}
+                        NumberAnimation {property: "scale"; from: 0; to: 1; duration: 150}
                     }
                     displaced: Transition{
-                        NumberAnimation {properties: "x,y"; easing.type: Easing.OutBack; duration: 400}
+                        NumberAnimation {properties: "x,y"; easing.type: Easing.OutBack; duration: 350}
                     }
                     remove: Transition{
-                        NumberAnimation {property: "scale"; from: 1; to: 0; duration: 200}
+                        NumberAnimation {property: "scale"; from: 1; to: 0; duration: 150}
                     }
                 }//ListView
             }//Rectangle
