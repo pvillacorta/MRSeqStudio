@@ -13,7 +13,8 @@ jwkkey.json
 jwkpub.json
 *.dat
 results
-sequences
+sequences/
+!backend/sequences/
 *.nii.gz
 *.mat
 *.phantom

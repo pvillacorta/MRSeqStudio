@@ -1,0 +1,290 @@
+{
+    "blocks": [
+        {
+            "children": [
+                {
+                    "number": 1
+                },
+                {
+                    "number": 2
+                },
+                {
+                    "number": 3
+                },
+                {
+                    "number": 4
+                },
+                {
+                    "number": 5
+                },
+                {
+                    "number": 6
+                }
+            ],
+            "cod": 0,
+            "iterator": "i",
+            "name": "TR",
+            "ngroups": 0,
+            "repetitions": "N_matrix"
+        },
+        {
+            "children": [],
+            "cod": 1,
+            "duration": "RF_dur",
+            "gradients": [
+                {
+                    "amplitude": "0",
+                    "axis": "x",
+                    "delay": "0",
+                    "flatTop": "0",
+                    "rise": "0"
+                },
+                {
+                    "amplitude": "0",
+                    "axis": "y",
+                    "delay": "0",
+                    "flatTop": "0",
+                    "rise": "0"
+                },
+                {
+                    "amplitude": "Gss",
+                    "axis": "z",
+                    "delay": "0",
+                    "flatTop": "RF_dur",
+                    "rise": "phase_rise"
+                }
+            ],
+            "name": "",
+            "ngroups": 1,
+            "rf": [
+                {
+                    "deltaf": "0",
+                    "flipAngle": "flip_angle * (-1)^i ",
+                    "shape": 1
+                }
+            ]
+        },
+        {
+            "children": [],
+            "cod": 3,
+            "gradients": [
+                {
+                    "amplitude": "-Gphase/2",
+                    "axis": "x",
+                    "delay": "0",
+                    "flatTop": "RF_dur/2",
+                    "rise": "phase_rise"
+                },
+                {
+                    "amplitude": "-Gphase/2 + i*step",
+                    "axis": "y",
+                    "delay": "0",
+                    "flatTop": "RF_dur/2",
+                    "rise": "phase_rise"
+                },
+                {
+                    "amplitude": "-Gss",
+                    "axis": "z",
+                    "delay": "0",
+                    "flatTop": "RF_dur/2",
+                    "rise": "phase_rise"
+                }
+            ],
+            "name": "",
+            "ngroups": 1
+        },
+        {
+            "children": [],
+            "cod": 2,
+            "duration": "delay_TR/2",
+            "name": "",
+            "ngroups": 1
+        },
+        {
+            "adcDelay": "ro_rise",
+            "adcPhase": "(i-1)*pi",
+            "children": [],
+            "cod": 4,
+            "duration": "Tro",
+            "gradients": [
+                {
+                    "amplitude": "Gro",
+                    "axis": "x",
+                    "delay": "0",
+                    "flatTop": "Tro",
+                    "rise": "ro_rise"
+                },
+                {
+                    "amplitude": "0",
+                    "axis": "y",
+                    "delay": "0",
+                    "flatTop": "0",
+                    "rise": "0"
+                },
+                {
+                    "amplitude": "0",
+                    "axis": "z",
+                    "delay": "0",
+                    "flatTop": "0",
+                    "rise": "0"
+                }
+            ],
+            "name": "",
+            "ngroups": 1,
+            "samples": "N_matrix"
+        },
+        {
+            "children": [],
+            "cod": 2,
+            "duration": "delay_TR/2",
+            "name": "",
+            "ngroups": 1
+        },
+        {
+            "children": [],
+            "cod": 3,
+            "gradients": [
+                {
+                    "amplitude": "-Gphase/2",
+                    "axis": "x",
+                    "delay": "0",
+                    "flatTop": "RF_dur/2",
+                    "rise": "phase_rise"
+                },
+                {
+                    "amplitude": "Gphase/2 - i*step",
+                    "axis": "y",
+                    "delay": "0",
+                    "flatTop": "RF_dur/2",
+                    "rise": "phase_rise"
+                },
+                {
+                    "amplitude": "-Gss",
+                    "axis": "z",
+                    "delay": "0",
+                    "flatTop": "RF_dur/2",
+                    "rise": "phase_rise"
+                }
+            ],
+            "name": "",
+            "ngroups": 1
+        }
+    ],
+    "description": "Write Here\n...\n...",
+    "variables": [
+        {
+            "expression": "42.5774688e6",
+            "name": "gamma",
+            "readonly": true,
+            "value": 42577468.8
+        },
+        {
+            "expression": "0.215",
+            "name": "FOV",
+            "readonly": false,
+            "value": 0.215
+        },
+        {
+            "expression": "64",
+            "name": "N_matrix",
+            "readonly": false,
+            "value": 64
+        },
+        {
+            "expression": "30e-3",
+            "name": "TR",
+            "readonly": false,
+            "value": 0.03
+        },
+        {
+            "expression": "50",
+            "name": "flip_angle",
+            "readonly": false,
+            "value": 50
+        },
+        {
+            "expression": "2e-3",
+            "name": "RF_dur",
+            "readonly": false,
+            "value": 0.002
+        },
+        {
+            "expression": "60e-3",
+            "name": "Gmax",
+            "readonly": false,
+            "value": 0.06
+        },
+        {
+            "expression": "500",
+            "name": "Smax",
+            "readonly": false,
+            "value": 500
+        },
+        {
+            "expression": "1e-4",
+            "name": "phase_rise",
+            "readonly": false,
+            "value": 0.0001
+        },
+        {
+            "expression": "5e-3",
+            "name": "Gss",
+            "readonly": false,
+            "value": 0.005
+        },
+        {
+            "expression": "1/FOV",
+            "name": "dk",
+            "readonly": false,
+            "value": 4.651162790697675
+        },
+        {
+            "expression": "(N_matrix - 1)*dk",
+            "name": "FOVk",
+            "readonly": false,
+            "value": 293.0232558139535
+        },
+        {
+            "expression": "2e-3",
+            "name": "ACQ_dur",
+            "readonly": false,
+            "value": 0.002
+        },
+        {
+            "expression": "FOVk/(gamma*ACQ_dur)",
+            "name": "Gro",
+            "readonly": false,
+            "value": 0.0034410600732323656
+        },
+        {
+            "expression": "Gro / Smax",
+            "name": "ro_rise",
+            "readonly": false,
+            "value": 6.882120146464731e-06
+        },
+        {
+            "expression": "ACQ_dur - ro_rise",
+            "name": "Tro",
+            "readonly": false,
+            "value": 0.0019931178798535355
+        },
+        {
+            "expression": "FOVk/(gamma*(RF_dur/2+phase_rise))",
+            "name": "Gphase",
+            "readonly": false,
+            "value": 0.006256472860422482
+        },
+        {
+            "expression": "dk/(gamma*(RF_dur/2+phase_rise))",
+            "name": "step",
+            "readonly": false,
+            "value": 9.930909302257908e-05
+        },
+        {
+            "expression": "TR - (6*phase_rise + 2*RF_dur + ACQ_dur)",
+            "name": "delay_TR",
+            "readonly": false,
+            "value": 0.023399999999999997
+        }
+    ]
+}
