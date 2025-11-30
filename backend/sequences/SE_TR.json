@@ -69,7 +69,7 @@
         {
             "children": [],
             "cod": 2,
-            "duration": "TE/2 - (RF1_dur/2 + RF2_dur/2 + flat_top_phase + 4*rise_phase + 2*crusher_rise + crusher_flat_top)",
+            "duration": "TE/2 - (RF1_dur/2 + RF2_dur/2 + flat_top_phase + 3*rise_phase + 2*crusher_rise + crusher_flat_top)",
             "name": "",
             "ngroups": 0
         },
@@ -171,7 +171,7 @@
         {
             "children": [],
             "cod": 2,
-            "duration": "TE/2 - (RF2_dur/2 + rise_phase + 2*crusher_rise + crusher_flat_top + ACQ_dur/2 + rise_ro)",
+            "duration": "TE/2 - (RF2_dur/2 + 2*crusher_rise + crusher_flat_top + ACQ_dur/2 + rise_ro)",
             "name": "",
             "ngroups": 0
         },
