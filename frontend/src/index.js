@@ -20,6 +20,7 @@ let niftiFile
 let niftiUrl
 
 let imageData
+let genericRenderer3d
 let renderer3d
 let renderWindow3d
 
@@ -57,15 +58,31 @@ function getViewerMode(){
   return localStorage.getItem('viewerMode') || 'slices'
 }
 
+// Firefox is strict about WebGL when the container has display:none (0×0
+// framebuffer). Keep layout size with visibility and always resize+render
+// after the viewer becomes visible again.
+function refreshVtkViewer(){
+  if (!genericRenderer3d || !renderWindow3d) return
+  const vtkDiv = document.getElementById("VTKjs")
+  if (!vtkDiv || vtkDiv.style.visibility === 'hidden') return
+  requestAnimationFrame(() => {
+    genericRenderer3d.resize()
+    renderWindow3d.render()
+  })
+}
+
 function setViewerMode(mode){
   localStorage.setItem('viewerMode', mode)
   const vtkDiv = document.getElementById("VTKjs")
   const iframe = document.getElementById("phantomViewer")
   if(mode === 'slices'){
     vtkDiv.style.display = 'block'
+    vtkDiv.style.visibility = 'visible'
     iframe.style.visibility = 'hidden'
+    refreshVtkViewer()
   }else{
-    vtkDiv.style.display = 'none'
+    // Keep display:block so the canvas retains a non-zero size for the next render
+    vtkDiv.style.visibility = 'hidden'
     iframe.style.visibility = 'visible'
   }
 }
@@ -121,9 +138,12 @@ async function displayVolume(filename){
   const currentMode = getViewerMode();
   const currentMap = getMapMode();
 
-  // Show loader, hide both views while loading
+  // Show loader, hide both views while loading.
+  // Prefer visibility:hidden over display:none so VTKjs keeps a non-zero size
+  // (required for a valid WebGL framebuffer in Firefox).
   loading.style.display = "block";
-  vtkDiv.style.display = 'none';
+  vtkDiv.style.display = 'block';
+  vtkDiv.style.visibility = 'hidden';
   iframe.style.visibility = 'hidden';
 
   const combinedObj = {
@@ -195,7 +215,7 @@ window.displayVolume = displayVolume
 
 
 async function setup() {
-  const genericRenderer3d = vtkGenericRenderWindow.newInstance({
+  genericRenderer3d = vtkGenericRenderWindow.newInstance({
     background: [ 0.188,
                   0.200,
                   0.212 ] 
@@ -224,6 +244,8 @@ async function setup() {
       }
     })
   }
+
+  window.addEventListener('resize', refreshVtkViewer)
 }
 
 async function loadNifti() {
@@ -271,6 +293,12 @@ function addReslicerToRenderer() {
   jActor3d.getProperty().setColorWindow(colorWindow);
   kActor3d.getProperty().setColorWindow(colorWindow);
 
+  // NEAREST avoids OES_texture_float_linear requirements that break float
+  // 3D textures on some Firefox/Linux GPU drivers (black slices).
+  iActor3d.getProperty().setInterpolationTypeToNearest();
+  jActor3d.getProperty().setInterpolationTypeToNearest();
+  kActor3d.getProperty().setInterpolationTypeToNearest();
+
   renderer3d.addActor(iActor3d)
   renderer3d.addActor(jActor3d)
   renderer3d.addActor(kActor3d)
@@ -290,6 +318,7 @@ function addSlicePlane(){
 
   resliceActor.getProperty().setColorLevel(colorLevel);
   resliceActor.getProperty().setColorWindow(colorWindow);
+  resliceActor.getProperty().setInterpolationTypeToNearest();
 
   renderer3d.addActor(resliceActor)
 
